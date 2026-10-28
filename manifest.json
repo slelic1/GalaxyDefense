@@ -1,0 +1,10 @@
+{
+  "name": "Galaxy Defense: 행성 수호전",
+  "short_name": "GalaxyDefense",
+  "start_url": "index.html",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0a0c16",
+  "theme_color": "#080d1a",
+  "description": "외계 함대의 침공으로부터 행성 본부를 방어하는 SF 디펜스 게임"
+}
