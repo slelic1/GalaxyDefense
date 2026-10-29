@@ -41,13 +41,73 @@ class GalaxyDefenseGame {
   resizeCanvas() {
     const viewport = document.getElementById('canvas-viewport') || this.canvas.parentElement;
     const rect = viewport.getBoundingClientRect();
-    this.canvas.width = rect.width;
-    this.canvas.height = rect.height;
-    if (this.starfield) this.starfield.resize(this.canvas.width, this.canvas.height);
+    const oldW = this.canvas.width;
+    const oldH = this.canvas.height;
+    const newW = rect.width;
+    const newH = rect.height;
+
+    this.canvas.width = newW;
+    this.canvas.height = newH;
+    if (this.starfield) this.starfield.resize(newW, newH);
+
+    // Synchronize relative positions of active enemies, projectiles, and FX on resize
+    if (oldW > 0 && oldH > 0 && (oldW !== newW || oldH !== newH)) {
+      const scaleX = newW / oldW;
+      const scaleY = newH / oldH;
+
+      // Rescale active enemies to keep relative positions on canvas
+      if (this.enemies) {
+        for (let e of this.enemies) {
+          e.x *= scaleX;
+          e.y *= scaleY;
+        }
+      }
+
+      // Rescale projectiles
+      if (this.projectiles) {
+        for (let p of this.projectiles) {
+          p.x *= scaleX;
+          p.y *= scaleY;
+          if (p.vx !== undefined) p.vx *= scaleX;
+          if (p.vy !== undefined) p.vy *= scaleY;
+        }
+      }
+
+      // Rescale visual particles and effects
+      if (this.fx) {
+        for (let pt of this.fx.particles) {
+          pt.x *= scaleX;
+          pt.y *= scaleY;
+        }
+        for (let sw of this.fx.shockwaves) {
+          sw.x *= scaleX;
+          sw.y *= scaleY;
+          sw.radius *= scaleX;
+          sw.maxRadius *= scaleX;
+        }
+        for (let ft of this.fx.floatingTexts) {
+          ft.x *= scaleX;
+          ft.y *= scaleY;
+        }
+        if (this.fx.lightningArcs) {
+          for (let arc of this.fx.lightningArcs) {
+            arc.x1 *= scaleX;
+            arc.y1 *= scaleY;
+            arc.x2 *= scaleX;
+            arc.y2 *= scaleY;
+          }
+        }
+      }
+    }
+
     if (this.base) {
-      this.base.width = Math.min(680, Math.max(380, this.canvas.width * 0.52));
+      const isMobile = this.canvas.width < 600;
+      const baseW = isMobile 
+        ? Math.min(350, Math.max(260, this.canvas.width * 0.86))
+        : Math.min(680, Math.max(380, this.canvas.width * 0.52));
+      this.base.width = baseW;
       this.base.x = this.canvas.width / 2;
-      this.base.y = this.canvas.height - 25;
+      this.base.y = this.canvas.height - 20;
       this.setupHardpoints();
     }
   }
@@ -55,11 +115,11 @@ class GalaxyDefenseGame {
   setupHardpoints() {
     const span = this.base.width * 0.42;
     this.hardpoints = [
-      { id: 0, relX: -span,        relY: -22, radius: 22, turret: null },
-      { id: 1, relX: -span * 0.5,  relY: -42, radius: 22, turret: null },
-      { id: 2, relX: 0,            relY: -54, radius: 22, turret: null },
-      { id: 3, relX: span * 0.5,   relY: -42, radius: 22, turret: null },
-      { id: 4, relX: span,         relY: -22, radius: 22, turret: null }
+      { id: 0, relX: -span,        relY: -20, radius: 22, turret: null },
+      { id: 1, relX: -span * 0.5,  relY: -38, radius: 22, turret: null },
+      { id: 2, relX: 0,            relY: -48, radius: 22, turret: null },
+      { id: 3, relX: span * 0.5,   relY: -38, radius: 22, turret: null },
+      { id: 4, relX: span,         relY: -20, radius: 22, turret: null }
     ];
 
     // Re-link existing turrets if resizing
@@ -117,7 +177,7 @@ class GalaxyDefenseGame {
       this.buildTurret(3, 'emp');
       this.buildTurret(4, 'repair');
       for (let t of this.turrets) {
-        t.level = 5;
+        t.level = 10;
         t.applyStats();
       }
     }
@@ -147,18 +207,21 @@ class GalaxyDefenseGame {
 
   generateWaveEnemies(waveNum) {
     const list = [];
-    const mult = 1 + (waveNum - 1) * 0.28;
+    // Dynamic difficulty curve tailored for up to 10-level upgraded 9 turrets
+    const mult = waveNum <= 3
+      ? (1 + (waveNum - 1) * 0.25)
+      : (1.5 * Math.pow(1.17, waveNum - 3));
     const isBossWave = (waveNum % 5 === 0);
 
-    // Scout counts
-    const scoutCount = 6 + waveNum * 2;
+    // Scout drones
+    const scoutCount = 7 + waveNum * 2;
     for (let i = 0; i < scoutCount; i++) {
       list.push({ type: 'scout', mult });
     }
 
-    // Fighter counts (from wave 2+)
+    // Fighters (from wave 2+)
     if (waveNum >= 2) {
-      const fighterCount = 3 + Math.floor(waveNum * 1.5);
+      const fighterCount = 4 + Math.floor(waveNum * 1.5);
       for (let i = 0; i < fighterCount; i++) {
         list.push({ type: 'fighter', mult });
       }
@@ -166,7 +229,7 @@ class GalaxyDefenseGame {
 
     // Stealth Infiltrators (from wave 3+)
     if (waveNum >= 3) {
-      const stealthCount = 2 + Math.floor(waveNum * 0.8);
+      const stealthCount = 3 + Math.floor(waveNum * 0.9);
       for (let i = 0; i < stealthCount; i++) {
         list.push({ type: 'stealth', mult });
       }
@@ -174,15 +237,30 @@ class GalaxyDefenseGame {
 
     // Heavy Cruisers (from wave 4+)
     if (waveNum >= 4) {
-      const cruiserCount = 1 + Math.floor(waveNum * 0.6);
+      const cruiserCount = 2 + Math.floor(waveNum * 0.7);
       for (let i = 0; i < cruiserCount; i++) {
         list.push({ type: 'cruiser', mult });
       }
     }
 
-    // Boss
+    // Void Destroyers (from wave 5+)
+    if (waveNum >= 5) {
+      const destroyerCount = 1 + Math.floor((waveNum - 4) * 0.8);
+      for (let i = 0; i < destroyerCount; i++) {
+        list.push({ type: 'destroyer', mult });
+      }
+    }
+
+    // Boss Battles
     if (isBossWave) {
-      list.push({ type: 'boss', mult: mult * 1.5 });
+      const isSuperBoss = waveNum >= 10;
+      const bossMult = isSuperBoss ? mult * 2.2 : mult * 1.5;
+      list.push({ type: 'boss', mult: bossMult });
+      if (isSuperBoss) {
+        // Escort destroyers for super boss
+        list.push({ type: 'destroyer', mult: mult * 1.3 });
+        list.push({ type: 'destroyer', mult: mult * 1.3 });
+      }
     }
 
     // Shuffle spawns (except boss arrives at back)
@@ -228,8 +306,8 @@ class GalaxyDefenseGame {
       this.fx.addNotification(turret.x, turret.y - 40, '업그레이드 골드 부족!', '#ef4444');
       return;
     }
-    if (turret.level >= 5) {
-      this.fx.addNotification(turret.x, turret.y - 40, '최대 레벨 도달!', '#ffbe0b');
+    if (turret.level >= 10) {
+      this.fx.addNotification(turret.x, turret.y - 40, '최고 레벨 (Lv.10 MAX) 달성!', '#ffbe0b');
       return;
     }
 
@@ -237,8 +315,9 @@ class GalaxyDefenseGame {
       this.gold -= turret.upgradeCost;
     }
     turret.upgrade();
-    this.fx.createHitSpark(turret.x, turret.y, turret.color, 12);
-    this.fx.addNotification(turret.x, turret.y - 40, `Lv.${turret.level} 강화 완료!`, '#10b981');
+    this.fx.createHitSpark(turret.x, turret.y, turret.color, 16);
+    const msg = turret.level >= 10 ? 'Lv.10 [MAX] 궁극 강화 달성!' : `Lv.${turret.level} 강화 완료!`;
+    this.fx.addNotification(turret.x, turret.y - 40, msg, '#10b981');
     this.closePopup();
     this.updateHUD();
   }
@@ -338,11 +417,11 @@ class GalaxyDefenseGame {
     document.getElementById('popup-range').textContent = `사거리: ${Math.round(turret.range)}`;
 
     const upBtn = document.getElementById('popup-btn-upgrade');
-    if (turret.level >= 5) {
-      upBtn.textContent = '최대 레벨';
+    if (turret.level >= 10) {
+      upBtn.textContent = '최고 레벨 (MAX)';
       upBtn.disabled = true;
     } else {
-      upBtn.textContent = this.gameMode === 'ADMIN' ? '무료 강화' : `강화 (${turret.upgradeCost}G)`;
+      upBtn.textContent = this.gameMode === 'ADMIN' ? '무료 강화' : `강화 (${turret.upgradeCost.toLocaleString()}G)`;
       upBtn.disabled = false;
     }
   }
@@ -382,6 +461,17 @@ class GalaxyDefenseGame {
 
   setupEventListeners() {
     window.addEventListener('resize', () => this.resizeCanvas());
+
+    // Horizontal wheel scroll on turret selector deck when window is narrow
+    const turretSelector = document.querySelector('.turret-selector');
+    if (turretSelector) {
+      turretSelector.addEventListener('wheel', (e) => {
+        if (e.deltaY !== 0) {
+          e.preventDefault();
+          turretSelector.scrollLeft += e.deltaY * 0.9;
+        }
+      }, { passive: false });
+    }
 
     // Auto-pause when user leaves tab, switches apps, minimizes, or screen locks (Desktop & Mobile)
     document.addEventListener('visibilitychange', () => {
@@ -458,7 +548,7 @@ class GalaxyDefenseGame {
         const hpX = this.base.x + hp.relX;
         const hpY = this.base.y + hp.relY;
         const dist = Math.hypot(x - hpX, y - hpY);
-        if (dist <= hp.radius + 8) {
+        if (dist <= hp.radius + 14) {
           clickedSlot = hp;
           break;
         }
@@ -513,8 +603,8 @@ class GalaxyDefenseGame {
 
       if (this.state !== 'PLAYING') return;
 
-      if (e.key >= '1' && e.key <= '5') {
-        const types = ['laser', 'plasma', 'missile', 'emp', 'repair'];
+      if (e.key >= '1' && e.key <= '9') {
+        const types = ['laser', 'plasma', 'missile', 'emp', 'repair', 'sniper', 'tesla', 'flamethrower', 'freezer'];
         const selected = types[parseInt(e.key) - 1];
         if (selected) {
           this.selectedTurretType = selected;
@@ -573,7 +663,8 @@ class GalaxyDefenseGame {
       }
     } else if (this.waveState === 'SPAWNING') {
       this.spawnTimer += this.gameSpeed;
-      if (this.spawnTimer >= 38) { // spawn cadence
+      const spawnCadence = Math.max(16, Math.floor(40 - this.wave * 1.4));
+      if (this.spawnTimer >= spawnCadence) {
         this.spawnTimer = 0;
         if (this.enemiesToSpawn.length > 0) {
           const enemyConf = this.enemiesToSpawn.shift();
@@ -585,11 +676,12 @@ class GalaxyDefenseGame {
     } else if (this.waveState === 'WAVE_ACTIVE') {
       // Check if all enemies defeated
       if (this.enemies.length === 0 && this.enemiesToSpawn.length === 0) {
+        const bonusGold = 130 + this.wave * 35;
+        this.gold += bonusGold;
+        this.score += 250 * this.wave;
+        this.fx.addNotification(this.canvas.width / 2, 220, `Wave ${this.wave} 클리어! 보너스 +${bonusGold}G 지급`, '#ffbe0b');
         this.wave++;
-        this.gold += 120 + this.wave * 25;
-        this.score += 200 * this.wave;
         this.updateHUD();
-        this.fx.addNotification(this.canvas.width / 2, 220, `웨이브 클리어! 보너스 골드 지급`, '#ffbe0b');
         this.startPrepareWave();
       }
     }

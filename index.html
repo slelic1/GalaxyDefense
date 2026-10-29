@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -10,6 +11,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
   <div id="game-container">
     <!-- Main Battlefield Viewport -->
@@ -34,6 +36,31 @@
             모드 선택 대기
           </div>
         </div>
+
+        <!-- Center Base Defense Status (Smart Peek Overlay: High transparency by default, clear on hover/touch) -->
+        <div id="top-base-status" class="top-base-status" title="기지 방어 상태 (클릭 또는 마우스를 올리면 선명해집니다)">
+          <div class="top-status-header">
+            <span class="status-shield-icon">🛡️</span>
+            <span class="status-title">BASE STATUS</span>
+          </div>
+          <div class="status-bars">
+            <div class="status-bar-row">
+              <span class="bar-lbl hull">HULL</span>
+              <div class="bar-track">
+                <div class="bar-fill hp" id="console-hp-bar" style="width: 100%;"></div>
+              </div>
+              <span class="bar-num" id="console-hp-val">1000/1000</span>
+            </div>
+            <div class="status-bar-row">
+              <span class="bar-lbl shield">SHLD</span>
+              <div class="bar-track">
+                <div class="bar-fill shield" id="console-shield-bar" style="width: 100%;"></div>
+              </div>
+              <span class="bar-num" id="console-shield-val">500/500</span>
+            </div>
+          </div>
+        </div>
+
         <div class="hud-actions">
           <button class="btn-hud" id="btn-pause-toggle">⏸️ 일시정지</button>
           <button class="btn-hud" id="btn-sound-toggle">🔊 사운드 ON</button>
@@ -94,11 +121,13 @@
               <div class="mode-title">관리자 모드</div>
               <ul class="mode-features">
                 <li>무한 자원 (999,999G) 제공</li>
-                <li>모든 포탑 5레벨 즉시 최대치 해금</li>
+                <li>모든 포탑 10레벨 (MAX) 즉시 해금</li>
                 <li>치트 패널: 전체 적 섬멸, 웨이브 스킵</li>
                 <li>보스 즉시 소환, 기지 무적 모드 지원</li>
               </ul>
-              <button class="btn-primary" style="margin-top: 18px; padding: 8px 20px; font-size: 14px; background: linear-gradient(135deg, #b537f2 0%, #7e22ce 100%); color: #fff;">관리자 권한 진입</button>
+              <button class="btn-primary"
+                style="margin-top: 18px; padding: 8px 20px; font-size: 14px; background: linear-gradient(135deg, #b537f2 0%, #7e22ce 100%); color: #fff;">관리자
+                권한 진입</button>
             </div>
           </div>
         </div>
@@ -107,14 +136,17 @@
       <!-- Pause Modal (Auto-pause on blur / app switch) -->
       <div class="modal-overlay" id="pause-modal" style="display: none;">
         <div class="modal-content" style="max-width: 480px;">
-          <h1 class="modal-title" style="background: linear-gradient(135deg, #38bdf8 0%, #00f0ff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">일시 정지</h1>
+          <h1 class="modal-title"
+            style="background: linear-gradient(135deg, #38bdf8 0%, #00f0ff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            일시 정지</h1>
           <p class="modal-desc" style="margin-bottom: 20px;">
             화면 이탈 또는 일시정지로 인해 게임이 안전하게 멈추었습니다.<br>
             준비가 되시면 아래 버튼을 눌러 계속 진행해 주세요.
           </p>
           <div style="display: flex; gap: 12px; justify-content: center;">
             <button class="btn-primary" id="btn-resume" style="margin-top: 0; padding: 10px 24px;">▶ 계속하기</button>
-            <button class="btn-hud" id="btn-pause-restart" style="padding: 10px 20px; font-size: 14px; border-color: rgba(239, 68, 68, 0.6); color: #fca5a5;">처음으로</button>
+            <button class="btn-hud" id="btn-pause-restart"
+              style="padding: 10px 20px; font-size: 14px; border-color: rgba(239, 68, 68, 0.6); color: #fca5a5;">처음으로</button>
           </div>
         </div>
       </div>
@@ -122,7 +154,9 @@
       <!-- Game Over Modal -->
       <div class="modal-overlay" id="gameover-modal" style="display: none;">
         <div class="modal-content">
-          <h1 class="modal-title" style="background: linear-gradient(135deg, #ef4444 0%, #f97316 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">기지 함락</h1>
+          <h1 class="modal-title"
+            style="background: linear-gradient(135deg, #ef4444 0%, #f97316 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            기지 함락</h1>
           <p class="modal-desc">외계 함대의 공세를 버티지 못하고 행성 방어선이 붕괴되었습니다.</p>
           <div style="margin: 20px 0; font-size: 18px; color: var(--text-main); line-height: 2;">
             <div>최종 도달 웨이브: <span id="final-wave" style="color: var(--accent-gold); font-weight: bold;">0</span></div>
@@ -168,26 +202,29 @@
             <div class="name">수리 드론 허브</div>
             <div class="cost">220 G</div>
           </div>
-        </div>
-
-        <!-- Center Base Status Console -->
-        <div class="base-console">
-          <div class="console-label">행성 본부 방어 상태 (BASE STATUS)</div>
-          <div class="console-bars">
-            <div class="bar-row">
-              <span class="bar-name">HULL</span>
-              <div class="bar-track">
-                <div class="bar-fill hp" id="console-hp-bar" style="width: 100%;"></div>
-              </div>
-              <span class="bar-val" id="console-hp-val">1000/1000</span>
-            </div>
-            <div class="bar-row">
-              <span class="bar-name">SHIELD</span>
-              <div class="bar-track">
-                <div class="bar-fill shield" id="console-shield-bar" style="width: 100%;"></div>
-              </div>
-              <span class="bar-val" id="console-shield-val">500/500</span>
-            </div>
+          <div class="turret-card" data-type="sniper">
+            <span class="hotkey">6</span>
+            <div class="icon">🎯</div>
+            <div class="name">레일건 스나이퍼</div>
+            <div class="cost">450 G</div>
+          </div>
+          <div class="turret-card" data-type="tesla">
+            <span class="hotkey">7</span>
+            <div class="icon">⚡</div>
+            <div class="name">테슬라 코일</div>
+            <div class="cost">380 G</div>
+          </div>
+          <div class="turret-card" data-type="flamethrower">
+            <span class="hotkey">8</span>
+            <div class="icon">🔥</div>
+            <div class="name">화염방사기</div>
+            <div class="cost">290 G</div>
+          </div>
+          <div class="turret-card" data-type="freezer">
+            <span class="hotkey">9</span>
+            <div class="icon">❄️</div>
+            <div class="name">빙동 포탑</div>
+            <div class="cost">330 G</div>
           </div>
         </div>
 
@@ -223,4 +260,5 @@
   <script src="js/skills.js"></script>
   <script src="js/game.js"></script>
 </body>
+
 </html>

@@ -151,6 +151,7 @@ class FXManager {
     this.particles = [];
     this.shockwaves = [];
     this.floatingTexts = [];
+    this.lightningArcs = [];
   }
 
   createExplosion(x, y, color = '#ff6b35', count = 25, intensity = 1) {
@@ -196,9 +197,50 @@ class FXManager {
     this.particles = this.particles.filter(p => p.update());
     this.shockwaves = this.shockwaves.filter(s => s.update());
     this.floatingTexts = this.floatingTexts.filter(t => t.update());
+    if (this.lightningArcs && this.lightningArcs.length > 0) {
+      this.lightningArcs = this.lightningArcs.filter(arc => {
+        arc.life--;
+        return arc.life > 0;
+      });
+    }
   }
 
   draw(ctx) {
+    // Draw lightning arcs first
+    if (this.lightningArcs && this.lightningArcs.length > 0) {
+      ctx.save();
+      for (let arc of this.lightningArcs) {
+        const lvl = arc.level || 1;
+        ctx.strokeStyle = arc.color || '#a78bfa';
+        ctx.lineWidth = 1.8 + lvl * 0.8;
+        ctx.shadowBlur = 10 + lvl * 4;
+        ctx.shadowColor = arc.color || '#a78bfa';
+        ctx.globalAlpha = Math.min(1, arc.life / 6);
+
+        // Procedural jagged lightning bolt
+        ctx.beginPath();
+        ctx.moveTo(arc.x1, arc.y1);
+        const steps = 6 + lvl;
+        for (let s = 1; s < steps; s++) {
+          const t = s / steps;
+          const cx = arc.x1 + (arc.x2 - arc.x1) * t + (Math.random() - 0.5) * (14 + lvl * 4);
+          const cy = arc.y1 + (arc.y2 - arc.y1) * t + (Math.random() - 0.5) * (14 + lvl * 4);
+          ctx.lineTo(cx, cy);
+        }
+        ctx.lineTo(arc.x2, arc.y2);
+        ctx.stroke();
+
+        // White core for high levels
+        if (lvl >= 3) {
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.globalAlpha = 0.8;
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
     for (let s of this.shockwaves) s.draw(ctx);
     for (let p of this.particles) p.draw(ctx);
     for (let t of this.floatingTexts) t.draw(ctx);
@@ -208,5 +250,6 @@ class FXManager {
     this.particles = [];
     this.shockwaves = [];
     this.floatingTexts = [];
+    this.lightningArcs = [];
   }
 }
