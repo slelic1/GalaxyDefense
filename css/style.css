@@ -11,6 +11,8 @@
   --shield-blue: #38bdf8;
   --danger-red: #ef4444;
   --font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  /* Dynamic app height for mobile browsers (set by JS) */
+  --app-height: 100vh;
 }
 
 * {
@@ -21,13 +23,15 @@
   -webkit-user-select: none;
 }
 
-html, body {
+html,
+body {
   background: var(--bg-primary);
   color: var(--text-main);
   font-family: var(--font-family);
   overflow: hidden;
-  height: 100%;
-  height: 100dvh;
+  /* Use JS-updated app-height to avoid mobile chrome clipping (fallback to 100vh) */
+  height: var(--app-height, 100vh);
+  min-height: var(--app-height, 100vh);
   width: 100%;
   margin: 0;
   padding: 0;
@@ -40,9 +44,10 @@ html, body {
 #game-container {
   position: relative;
   width: 100vw;
-  height: 100%;
-  height: 100dvh;
-  max-height: 100dvh;
+  /* Use JS-updated app-height to avoid mobile chrome clipping (fallback to 100vh) */
+  height: var(--app-height, 100vh);
+  min-height: var(--app-height, 100vh);
+  max-height: var(--app-height, 100vh);
   display: flex;
   flex-direction: column;
   background: #000;
@@ -55,7 +60,8 @@ html, body {
   position: relative;
   flex: 1 1 auto;
   width: 100%;
-  min-height: 0; /* Ensures proper shrink in flexbox */
+  min-height: 0;
+  /* Ensures proper shrink in flexbox */
   background: #000;
   overflow: hidden;
 }
@@ -156,8 +162,10 @@ canvas#gameCanvas {
 #bottom-hud {
   position: relative;
   flex-shrink: 0;
-  height: 96px;
-  min-height: 96px;
+  /* Respect safe-area inset on mobile and increase padding to avoid overlap */
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px));
+  height: calc(96px + env(safe-area-inset-bottom, 0px));
+  min-height: calc(96px + env(safe-area-inset-bottom, 0px));
   width: 100%;
   background: #080d1a;
   border-top: 2px solid rgba(0, 240, 255, 0.4);
@@ -177,13 +185,16 @@ canvas#gameCanvas {
   align-items: center;
   gap: 10px;
   min-width: 0;
+  position: relative;
+  /* needed so the turret-info panel can be positioned inside */
 }
 
 .turret-selector {
   display: flex;
   gap: 6px;
   flex: 1 1 auto;
-  flex-wrap: nowrap; /* Never wrap cards vertically to prevent overlapping */
+  flex-wrap: nowrap;
+  /* Never wrap cards vertically to prevent overlapping */
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
@@ -191,6 +202,68 @@ canvas#gameCanvas {
   padding: 3px 2px;
   min-width: 0;
 }
+
+/* Turret info tooltip / panel (appears on hover on desktop, tap on mobile) */
+.turret-info {
+  position: absolute;
+  bottom: 110%;
+  left: 12px;
+  min-width: 180px;
+  max-width: 320px;
+  background: var(--bg-panel);
+  border: 1px solid rgba(0, 240, 255, 0.22);
+  padding: 10px 12px;
+  border-radius: 8px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.6), 0 0 14px rgba(0, 240, 255, 0.06) inset;
+  color: var(--text-main);
+  z-index: 35;
+  pointer-events: none;
+  /* non-interactive, informational only */
+  transition: transform 0.12s ease, opacity 0.12s ease;
+  transform-origin: bottom left;
+}
+
+.turret-info.t-visible {
+  display: block !important;
+  opacity: 1;
+  transform: translateY(-6px) scale(1);
+}
+
+.turret-info-title {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--border-cyan);
+  margin-bottom: 6px;
+}
+
+.turret-info-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.turret-info-stats {
+  font-size: 12px;
+  color: var(--text-main);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.turret-info-stats span {
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+@media (max-width: 850px) {
+  .turret-info {
+    bottom: 110%;
+    left: 8px;
+    min-width: 140px;
+    padding: 8px;
+  }
+}
+
 
 .turret-selector::-webkit-scrollbar {
   display: none;
@@ -203,11 +276,13 @@ canvas#gameCanvas {
   flex-wrap: nowrap;
 }
 
-.turret-card, .skill-card {
+.turret-card,
+.skill-card {
   position: relative;
   width: clamp(52px, 5.8vw, 68px);
   height: clamp(66px, 8.5vh, 84px);
-  flex-shrink: 0; /* Prevent card deformation/shrink overlapping */
+  flex-shrink: 0;
+  /* Prevent card deformation/shrink overlapping */
   background: var(--bg-panel);
   border: 1px solid rgba(0, 240, 255, 0.35);
   border-radius: 6px;
@@ -221,7 +296,8 @@ canvas#gameCanvas {
   text-align: center;
 }
 
-.turret-card:hover, .skill-card:hover:not(.cooldown) {
+.turret-card:hover,
+.skill-card:hover:not(.cooldown) {
   transform: translateY(-3px);
   border-color: var(--border-cyan);
   box-shadow: 0 0 14px rgba(0, 240, 255, 0.4);
@@ -233,7 +309,8 @@ canvas#gameCanvas {
   background: rgba(255, 190, 11, 0.12);
 }
 
-.turret-card .hotkey, .skill-card .hotkey {
+.turret-card .hotkey,
+.skill-card .hotkey {
   position: absolute;
   top: 3px;
   left: 4px;
@@ -245,18 +322,21 @@ canvas#gameCanvas {
   line-height: 1;
 }
 
-.turret-card .icon, .skill-card .icon {
+.turret-card .icon,
+.skill-card .icon {
   font-size: 20px;
   margin-bottom: 2px;
 }
 
-.turret-card .name, .skill-card .name {
+.turret-card .name,
+.skill-card .name {
   font-size: 10px;
   font-weight: bold;
   white-space: nowrap;
 }
 
-.turret-card .cost, .skill-card .cost {
+.turret-card .cost,
+.skill-card .cost {
   font-size: 10px;
   color: var(--accent-gold);
   margin-top: 1px;
@@ -302,7 +382,7 @@ canvas#gameCanvas {
   cursor: pointer;
   pointer-events: auto;
   user-select: none;
-  
+
   /* High transparency by default so it doesn't block incoming enemies */
   opacity: 0.32;
   transition: opacity 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease;
@@ -357,8 +437,13 @@ canvas#gameCanvas {
   color: #94a3b8;
 }
 
-.status-bar-row .bar-lbl.hull { color: #34d399; }
-.status-bar-row .bar-lbl.shield { color: #38bdf8; }
+.status-bar-row .bar-lbl.hull {
+  color: #34d399;
+}
+
+.status-bar-row .bar-lbl.shield {
+  color: #38bdf8;
+}
 
 .status-bar-row .bar-track {
   flex: 1;
@@ -481,8 +566,15 @@ canvas#gameCanvas {
 }
 
 @keyframes modalFadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .modal-title {
@@ -662,7 +754,8 @@ canvas#gameCanvas {
    Two-Tier Command Deck: Separates Turret Selector (Row 1) and Skill Bar (Row 2)
    Prevents Turret Cards (1-9) from ever colliding/overlapping with Skills (Q,W,E)
    ========================================================================== */
-@media (max-width: 850px), (orientation: portrait) and (max-width: 900px) {
+@media (max-width: 850px),
+(orientation: portrait) and (max-width: 900px) {
   #top-hud {
     height: 46px;
     min-height: 46px;
@@ -752,7 +845,8 @@ canvas#gameCanvas {
 
   .bottom-hud-inner {
     display: flex !important;
-    flex-direction: column !important; /* Stack Turrets on Row 1, Skills on Row 2 */
+    flex-direction: column !important;
+    /* Stack Turrets on Row 1, Skills on Row 2 */
     align-items: stretch !important;
     justify-content: space-between !important;
     gap: 3px !important;
@@ -855,7 +949,8 @@ canvas#gameCanvas {
     max-width: 120px !important;
     height: 28px !important;
     flex: 1 1 0 !important;
-    flex-direction: row !important; /* Horizontal capsule pill style */
+    flex-direction: row !important;
+    /* Horizontal capsule pill style */
     align-items: center !important;
     justify-content: center !important;
     gap: 4px !important;

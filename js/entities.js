@@ -225,12 +225,12 @@ const TURRET_TYPES = {
     name: '냉동 포탑',
     cost: 330,
     range: 180,
-    cooldown: 50,
+    cooldown: 100,
     damage: 20,
-    freezeDuration: 180,
+    freezeDuration: 100,
     color: '#67e8f9',
     icon: '❄️',
-    desc: '광역 냉동 - 적 완전 동결 3초'
+    desc: '광역 냉동: 적을 강력히 감속시키지만 고티어 적은 완전 정지가 아닌 감속만 적용'
   }
 };
 
@@ -253,14 +253,24 @@ class Turret {
     this.name = config.name;
     this.range = config.range * (1 + (this.level - 1) * 0.08);
     this.damage = config.damage ? config.damage * multiplier : 0;
-    this.cooldown = Math.max(4, Math.floor(config.cooldown / (1 + (this.level - 1) * 0.12)));
+    // cooldown scaling: Freezer scales more conservatively to avoid excessive fire rate at high levels
+    if (this.type === 'freezer') {
+      this.cooldown = Math.max(30, Math.floor(config.cooldown / (1 + (this.level - 1) * 0.08)));
+    } else {
+      this.cooldown = Math.max(4, Math.floor(config.cooldown / (1 + (this.level - 1) * 0.12)));
+    }
     this.splashRadius = config.splashRadius ? config.splashRadius * (1 + (this.level - 1) * 0.10) : 0;
     this.slowDuration = config.slowDuration ? config.slowDuration + (this.level - 1) * 10 : 0;
     this.healAmount = config.healAmount ? config.healAmount * multiplier : 0;
     this.chainCount = config.chainCount ? (config.chainCount + Math.floor((this.level - 1) * 0.7)) : 0;
     this.chainRange = config.chainRange ? (config.chainRange + (this.level - 1) * 12) : 0;
-    this.burnDuration = config.burnDuration ? config.burnDuration + (this.level - 1) * 15 : 0;
-    this.freezeDuration = config.freezeDuration ? config.freezeDuration + (this.level - 1) * 15 : 0;
+    this.burnDuration = config.burnDuration ? config.burnDuration + (this.level - 1) * 12 : 0; // milder growth
+    // Freeze duration grows more slowly and is capped to avoid permanent lockdowns
+    if (config.freezeDuration) {
+      this.freezeDuration = Math.min(config.freezeDuration + (this.level - 1) * 6, 180);
+    } else {
+      this.freezeDuration = 0;
+    }
     this.color = config.color;
     // Balanced exponential scaling to Lv 10
     this.upgradeCost = Math.round(config.cost * Math.pow(1.35, this.level - 1));
@@ -870,7 +880,7 @@ class Projectile {
       const explosionCount = 14 + lvl * 6;
       const explosionIntensity = 1 + lvl * 0.25;
       fx.createExplosion(this.x, this.y, this.color, explosionCount, explosionIntensity);
-      
+
       // Shockwave for high level plasma
       if (lvl >= 3) {
         fx.shockwaves.push(new Shockwave(this.x, this.y, this.splashRadius * 1.1, this.color, 18 + lvl * 3));
@@ -1108,7 +1118,7 @@ class EMPBurst {
     this.isDead = true;
   }
 
-  draw() {}
+  draw() { }
 }
 
 class TeslaChain {
@@ -1144,8 +1154,8 @@ class TeslaChain {
       remaining = remaining.filter(e => e !== nearest);
     }
   }
-  update() {}
-  draw() {}
+  update() { }
+  draw() { }
 }
 
 class FlameProjectile {
@@ -1239,9 +1249,16 @@ class FreezerBurst {
       const d = Math.hypot(e.x - this.x, e.y - this.y);
       if (d <= this.radius) {
         e.takeDamage(this.damage, fx);
-        // Completely freeze
-        e.slowTimer = this.freezeDuration;
-        e.slowFactor = 0;
+        // Apply freeze for small/medium enemies; for large / boss-class enemies apply heavy slow instead
+        if (e.type === 'boss' || e.type === 'destroyer' || e.type === 'cruiser') {
+          // Partial slow (not full freeze) and reduced duration to prevent permanent lockdown on big targets
+          e.slowTimer = Math.max(30, Math.floor(this.freezeDuration * 0.45));
+          e.slowFactor = 0.25; // 75% slow
+        } else {
+          // Full freeze for normal enemies
+          e.slowTimer = this.freezeDuration;
+          e.slowFactor = 0; // fully halted
+        }
         if (fx) {
           fx.createHitSpark(e.x, e.y, '#67e8f9', 6 + this.level * 3);
           fx.addDamageText(e.x, e.y, this.damage, this.level >= 4);
@@ -1251,7 +1268,7 @@ class FreezerBurst {
     this.isDead = true;
   }
 
-  draw() {}
+  draw() { }
 }
 
 class EnemyProjectile {

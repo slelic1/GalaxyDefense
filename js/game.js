@@ -5,6 +5,8 @@ class GalaxyDefenseGame {
     this.canvas = document.getElementById('gameCanvas');
     this.ctx = this.canvas.getContext('2d');
     this.resizeCanvas();
+    // Keep mobile browser chrome changes from clipping layout by syncing CSS --app-height
+    this.setAppHeight && this.setAppHeight();
 
     this.fx = new FXManager();
     this.starfield = new Starfield(this.canvas.width, this.canvas.height);
@@ -33,6 +35,10 @@ class GalaxyDefenseGame {
 
     this.selectedTurretType = 'laser';
     this.selectedTurretInstance = null;
+
+    // Preview state used to show placement ranges before building
+    this.preview = { active: false, multi: false, x: 0, y: 0, range: 0, slotId: null };
+    this.turretInfoFor = null; // DOM card currently showing info for
 
     this.setupHardpoints();
     this.setupEventListeners();
@@ -102,7 +108,7 @@ class GalaxyDefenseGame {
 
     if (this.base) {
       const isMobile = this.canvas.width < 600;
-      const baseW = isMobile 
+      const baseW = isMobile
         ? Math.min(350, Math.max(260, this.canvas.width * 0.86))
         : Math.min(680, Math.max(380, this.canvas.width * 0.52));
       this.base.width = baseW;
@@ -112,14 +118,111 @@ class GalaxyDefenseGame {
     }
   }
 
+  // Set CSS variable --app-height to window.innerHeight to prevent mobile chrome from clipping
+  setAppHeight() {
+    try {
+      document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+    } catch (e) {
+      // ignore on older browsers
+    }
+  }
+
+  // Show small info panel for a turret card (card element and turret type)
+  showTurretInfo(card, type) {
+    try {
+      const info = document.getElementById('turret-info');
+      const title = document.getElementById('turret-info-title');
+      const desc = document.getElementById('turret-info-desc');
+      const stats = document.getElementById('turret-info-stats');
+      const cfg = TURRET_TYPES[type];
+      if (!info || !cfg) return;
+      title.textContent = cfg.name || type;
+      desc.textContent = cfg.desc || '';
+      // Build simple stats string
+      let s = `비용: ${cfg.cost}G \u2022 사거리: ${cfg.range}px \u2022 쿨다운: ${cfg.cooldown}`;
+      if (cfg.damage) s += ` \u2022 공격력: ${cfg.damage}`;
+      if (cfg.splashRadius) s += ` \u2022 범위: ${cfg.splashRadius}`;
+      stats.textContent = s;
+
+      // Position near the card (keep onscreen)
+      const rect = card.getBoundingClientRect();
+      const parentRect = (document.getElementById('game-container')||document.body).getBoundingClientRect();
+      // Prefer above the card, else below
+      const left = Math.min(parentRect.width - 260, Math.max(8, rect.left - parentRect.left));
+      let top = rect.top - parentRect.top - 96;
+      if (top < 64) top = rect.bottom - parentRect.top + 8;
+      info.style.left = `${left}px`;
+      info.style.top = `${top}px`;
+      info.style.display = 'block';
+      info.setAttribute('aria-hidden','false');
+      this.turretInfoFor = card;
+      this.turretInfoVisible = true;
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  hideTurretInfo() {
+    const info = document.getElementById('turret-info');
+    if (!info) return;
+    info.style.display = 'none';
+    info.setAttribute('aria-hidden','true');
+    this.turretInfoFor = null;
+    this.turretInfoVisible = false;
+  }
+
+  // Update preview to the nearest empty hardpoint to pointer (x,y in canvas coordinates)
+  updatePreviewAtPointer(x, y) {
+    if (!this.selectedTurretType) return this.clearPreview();
+    let closest = null; let minD = 99999; let idx = null;
+    for (let hp of this.hardpoints) {
+      if (hp.turret) continue; // only show for empty slots
+      const hpX = this.base.x + hp.relX;
+      const hpY = this.base.y + hp.relY;
+      const d = Math.hypot(x - hpX, y - hpY);
+      if (d < minD) { minD = d; closest = hp; idx = hp.id; }
+    }
+    if (closest && minD <= 160) {
+      this.preview.active = true;
+      this.preview.multi = false;
+      this.preview.slotId = idx;
+      this.preview.x = this.base.x + closest.relX;
+      this.preview.y = this.base.y + closest.relY;
+      this.preview.range = (TURRET_TYPES[this.selectedTurretType] || {range:0}).range || 0;
+    } else {
+      // if pointer is far, clear single preview
+      this.preview.active = false;
+      this.preview.slotId = null;
+    }
+  }
+
+  // Show preview for all empty hardpoints (useful for mobile)
+  showAllPreviews() {
+    if (!this.selectedTurretType) return;
+    this.preview.multi = true;
+    this.preview.active = true;
+    this.preview.list = this.hardpoints.filter(hp => !hp.turret).map(hp => ({
+      x: this.base.x + hp.relX,
+      y: this.base.y + hp.relY,
+      range: (TURRET_TYPES[this.selectedTurretType] || {range:0}).range || 0
+    }));
+  }
+
+  clearPreview() {
+    this.preview.active = false;
+    this.preview.multi = false;
+    this.preview.slotId = null;
+    this.preview.list = null;
+  }
+
   setupHardpoints() {
     const span = this.base.width * 0.42;
     this.hardpoints = [
-      { id: 0, relX: -span,        relY: -20, radius: 22, turret: null },
-      { id: 1, relX: -span * 0.5,  relY: -38, radius: 22, turret: null },
-      { id: 2, relX: 0,            relY: -48, radius: 22, turret: null },
-      { id: 3, relX: span * 0.5,   relY: -38, radius: 22, turret: null },
-      { id: 4, relX: span,         relY: -20, radius: 22, turret: null }
+      { id: 0, relX: -span, relY: -20, radius: 22, turret: null },
+      { id: 1, relX: -span * 0.5, relY: -38, radius: 22, turret: null },
+      { id: 2, relX: 0, relY: -48, radius: 22, turret: null },
+      { id: 3, relX: span * 0.5, relY: -38, radius: 22, turret: null },
+      { id: 4, relX: span, relY: -20, radius: 22, turret: null }
     ];
 
     // Re-link existing turrets if resizing
@@ -315,9 +418,29 @@ class GalaxyDefenseGame {
       this.gold -= turret.upgradeCost;
     }
     turret.upgrade();
+
+    // Immediate upgrade spark
     this.fx.createHitSpark(turret.x, turret.y, turret.color, 16);
-    const msg = turret.level >= 10 ? 'Lv.10 [MAX] 궁극 강화 달성!' : `Lv.${turret.level} 강화 완료!`;
-    this.fx.addNotification(turret.x, turret.y - 40, msg, '#10b981');
+
+    // Level-based celebratory effects to emphasize impact
+    if (turret.level >= 5 && turret.level < 10) {
+      // Major mid-tier upgrade: bigger explosion + shockwave + punchy sound
+      this.fx.createExplosion(turret.x, turret.y - 6, turret.color, 22 + turret.level * 2, 1.4 + turret.level * 0.12);
+      this.fx.shockwaves.push(new Shockwave(turret.x, turret.y, 48 + turret.level * 6, turret.color, 26 + turret.level * 2));
+      try { sounds.playExplosion(1 + turret.level * 0.08); } catch (e) { }
+      this.fx.addNotification(turret.x, turret.y - 60, `Lv.${turret.level} 대규모 강화!`, '#ffbe0b');
+    } else if (turret.level >= 10) {
+      // Ultimate tier: huge FX, orbital-like audio cue, global notification
+      this.fx.createExplosion(turret.x, turret.y - 6, turret.color, 56, 3.0);
+      this.fx.shockwaves.push(new Shockwave(turret.x, turret.y, 120, turret.color, 48));
+      try { sounds.playOrbitalStrike(); } catch (e) { }
+      this.fx.addNotification(this.canvas.width / 2, 180, `${turret.name} 궁극 강화 완료! (Lv.10)`, '#f0abfc');
+    } else {
+      // Minor upgrade: pleasant ping
+      try { sounds.playClick(); } catch (e) { }
+      this.fx.addNotification(turret.x, turret.y - 40, `Lv.${turret.level} 강화 완료!`, '#10b981');
+    }
+
     this.closePopup();
     this.updateHUD();
   }
@@ -460,7 +583,10 @@ class GalaxyDefenseGame {
   }
 
   setupEventListeners() {
-    window.addEventListener('resize', () => this.resizeCanvas());
+    window.addEventListener('resize', () => { this.setAppHeight(); this.resizeCanvas(); });
+
+    // Orientation changes on mobile can alter innerHeight; sync app height shortly after orientation change
+    window.addEventListener('orientationchange', () => { setTimeout(() => { this.setAppHeight(); this.resizeCanvas(); }, 120); });
 
     // Horizontal wheel scroll on turret selector deck when window is narrow
     const turretSelector = document.querySelector('.turret-selector');
@@ -512,13 +638,40 @@ class GalaxyDefenseGame {
       });
     }
 
-    // Turret selector clicks
+    // Turret selector interactions (click/select + hover info + touch behavior)
+    const isTouchCapable = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
     document.querySelectorAll('.turret-card').forEach(card => {
-      card.addEventListener('click', () => {
+      // Click / tap selects turret type
+      card.addEventListener('click', (e) => {
         sounds.playClick();
         document.querySelectorAll('.turret-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
         this.selectedTurretType = card.dataset.type;
+
+        // For touch devices, toggle info panel on tap (tap once to preview info)
+        if (isTouchCapable) {
+          // toggle info visibility
+          const info = document.getElementById('turret-info');
+          if (this.turretInfoFor === card && this.turretInfoVisible) {
+            this.hideTurretInfo();
+          } else {
+            this.showTurretInfo(card, card.dataset.type);
+          }
+          // show multi previews on mobile
+          this.showAllPreviews();
+        }
+      });
+
+      // Pointer hover for desktop: show info on hover
+      card.addEventListener('pointerenter', (ev) => {
+        if (ev.pointerType === 'mouse') {
+          this.showTurretInfo(card, card.dataset.type);
+        }
+      });
+      card.addEventListener('pointerleave', (ev) => {
+        if (ev.pointerType === 'mouse') {
+          this.hideTurretInfo();
+        }
       });
     });
 
@@ -528,6 +681,35 @@ class GalaxyDefenseGame {
         this.skillManager.triggerSkill(card.dataset.skill);
       });
     });
+
+    // Canvas pointer handling: track pointer for placement preview
+    this.canvas.addEventListener('mousemove', (ev) => {
+      if (this.state !== 'PLAYING') return;
+      // only update preview for non-touch/mouse
+      const rect = this.canvas.getBoundingClientRect();
+      const x = ev.clientX - rect.left;
+      const y = ev.clientY - rect.top;
+      this.updatePreviewAtPointer(x, y);
+    });
+    this.canvas.addEventListener('mouseleave', () => { this.clearPreview(); });
+
+    // Touch events: position-based preview and multi preview while selecting
+    this.canvas.addEventListener('touchstart', (ev) => {
+      if (this.state !== 'PLAYING') return;
+      if (!this.selectedTurretType) return;
+      // show multi previews by default on touch
+      this.showAllPreviews();
+    }, {passive:true});
+    this.canvas.addEventListener('touchend', () => { this.clearPreview(); });
+    this.canvas.addEventListener('touchmove', (ev) => {
+      if (this.state !== 'PLAYING') return;
+      const t = ev.touches[0];
+      if (!t) return;
+      const rect = this.canvas.getBoundingClientRect();
+      const x = t.clientX - rect.left;
+      const y = t.clientY - rect.top;
+      this.updatePreviewAtPointer(x, y);
+    }, {passive:true});
 
     // Canvas click handling
     this.canvas.addEventListener('click', (e) => {
@@ -539,6 +721,7 @@ class GalaxyDefenseGame {
       // Orbital strike targeting
       if (this.skillManager.orbitalTargeting) {
         this.skillManager.executeOrbital(x, y);
+        this.clearPreview();
         return;
       }
 
@@ -558,13 +741,16 @@ class GalaxyDefenseGame {
         if (clickedSlot.turret) {
           // Open Upgrade/Sell popup
           this.openPopup(clickedSlot.turret);
+          this.clearPreview();
         } else {
           // Build selected turret
           this.buildTurret(clickedSlot.id, this.selectedTurretType);
           this.closePopup();
+          this.clearPreview();
         }
       } else {
         this.closePopup();
+        this.clearPreview();
       }
     });
 
@@ -820,6 +1006,40 @@ class GalaxyDefenseGame {
 
     // Draw Particle & Floating FX
     this.fx.draw(this.ctx);
+
+    // --- Placement preview rendering (before selected turret range) ---
+    if (this.preview && this.preview.active) {
+      this.ctx.save();
+      const alpha = 0.18;
+      this.ctx.globalAlpha = alpha;
+      this.ctx.lineWidth = 2;
+      const cfg = TURRET_TYPES[this.selectedTurretType] || { color: 'rgba(0,240,255,0.3)' };
+      this.ctx.strokeStyle = cfg.color || '#00f0ff';
+      this.ctx.fillStyle = (cfg.color || '#00f0ff');
+
+      if (this.preview.multi && Array.isArray(this.preview.list)) {
+        for (let item of this.preview.list) {
+          this.ctx.beginPath();
+          this.ctx.arc(item.x, item.y, item.range, 0, Math.PI * 2);
+          this.ctx.fill();
+          this.ctx.globalAlpha = 0.6;
+          this.ctx.stroke();
+          this.ctx.globalAlpha = alpha;
+        }
+      } else if (this.preview.slotId !== null) {
+        this.ctx.beginPath();
+        this.ctx.arc(this.preview.x, this.preview.y, this.preview.range, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.globalAlpha = 0.6;
+        this.ctx.stroke();
+      }
+      this.ctx.restore();
+    }
+
+    // 5. Range preview for selected turret instance
+    if (this.selectedTurretInstance) {
+      this.selectedTurretInstance.drawRange(this.ctx);
+    }
 
     // Orbital targeting reticle
     if (this.skillManager.orbitalTargeting) {
