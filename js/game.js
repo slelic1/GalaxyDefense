@@ -1234,32 +1234,71 @@ class GalaxyDefenseGame {
       }
     });
 
+    // Mode Switcher Tabs (Challenger vs Admin)
+    const tabChallenger = document.getElementById('tab-mode-challenger');
+    const tabAdmin = document.getElementById('tab-mode-admin');
+    const panelChallenger = document.getElementById('panel-challenger');
+    const panelAdmin = document.getElementById('panel-admin');
+
+    if (tabChallenger && tabAdmin && panelChallenger && panelAdmin) {
+      tabChallenger.addEventListener('click', () => {
+        tabChallenger.classList.add('active');
+        tabAdmin.classList.remove('active');
+        panelChallenger.style.display = 'block';
+        panelAdmin.style.display = 'none';
+        sounds.playClick();
+      });
+
+      tabAdmin.addEventListener('click', () => {
+        tabAdmin.classList.add('active');
+        tabChallenger.classList.remove('active');
+        panelAdmin.style.display = 'block';
+        panelChallenger.style.display = 'none';
+        sounds.playClick();
+      });
+    }
+
     // Difficulty Selection Pills
     const diffPills = document.querySelectorAll('.diff-pill');
-    const diffSummaryEl = document.getElementById('diff-summary');
+    const goldValEl = document.getElementById('stat-val-gold');
+    const upgradeValEl = document.getElementById('stat-val-upgrade');
+    const rewardValEl = document.getElementById('stat-val-reward');
+
+    const updateDifficultyUI = (diffKey) => {
+      const cfg = DIFFICULTY_CONFIGS[diffKey];
+      if (!cfg) return;
+      diffPills.forEach(p => p.classList.toggle('active', p.getAttribute('data-diff') === diffKey));
+      if (goldValEl) goldValEl.textContent = `${cfg.startGold} G`;
+      if (upgradeValEl) upgradeValEl.textContent = `${cfg.upgradeCostMult}x`;
+      if (rewardValEl) rewardValEl.textContent = `${Math.round(cfg.stageRewardMult * 100)}%`;
+    };
+
     diffPills.forEach(pill => {
       pill.addEventListener('click', (e) => {
         e.stopPropagation();
         const diff = pill.getAttribute('data-diff');
         if (diff && DIFFICULTY_CONFIGS[diff]) {
           this.selectedDifficulty = diff;
-          diffPills.forEach(p => p.classList.toggle('active', p === pill));
-          if (diffSummaryEl) {
-            diffSummaryEl.textContent = DIFFICULTY_CONFIGS[diff].summary;
-          }
+          updateDifficultyUI(diff);
           sounds.playClick();
         }
       });
     });
 
-    // Mode Selection Buttons
-    document.getElementById('btn-choose-challenger').addEventListener('click', () => {
-      this.startGame('CHALLENGER', this.selectedDifficulty);
-    });
+    // Start Game Buttons
+    const startChallengerBtn = document.getElementById('btn-start-challenger') || document.getElementById('btn-choose-challenger');
+    if (startChallengerBtn) {
+      startChallengerBtn.addEventListener('click', () => {
+        this.startGame('CHALLENGER', this.selectedDifficulty);
+      });
+    }
 
-    document.getElementById('btn-choose-admin').addEventListener('click', () => {
-      this.startGame('ADMIN');
-    });
+    const startAdminBtn = document.getElementById('btn-start-admin') || document.getElementById('btn-choose-admin');
+    if (startAdminBtn) {
+      startAdminBtn.addEventListener('click', () => {
+        this.startGame('ADMIN');
+      });
+    }
 
     // Restart Button
     document.getElementById('btn-restart').addEventListener('click', () => {

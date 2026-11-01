@@ -146,59 +146,83 @@
         </div>
       </div>
 
-      <!-- Mode Selection Modal (Start Screen) -->
+      <!-- Mode Selection Modal (Start Screen Launcher) -->
       <div class="modal-overlay" id="mode-modal">
-        <div class="modal-content">
-          <h1 class="modal-title">GALAXY DEFENSE</h1>
-          <p class="modal-desc">외계 함대의 침공으로부터 행성 본부를 방어하세요.<br>플레이하실 모드와 난이도를 선택해 주세요.</p>
-          <div class="mode-selection-container">
-            <!-- 도전자 모드 -->
-            <div class="mode-card challenger" id="btn-choose-challenger">
-              <div class="mode-icon">⚔️</div>
-              <div class="mode-title">도전자 모드</div>
+        <div class="modal-content launcher-modal">
+          <h1 class="modal-title launcher-title">GALAXY DEFENSE</h1>
+          <p class="modal-desc launcher-desc">외계 함대의 침공으로부터 행성 본부를 방어하세요.</p>
 
-              <!-- Difficulty Selection Tabs -->
-              <div class="difficulty-picker" id="difficulty-picker">
-                <button type="button" class="diff-pill" data-diff="EASY">
-                  <span class="diff-name">쉬움</span>
-                  <span class="diff-tag">EASY</span>
-                </button>
-                <button type="button" class="diff-pill active" data-diff="NORMAL">
-                  <span class="diff-name">보통</span>
-                  <span class="diff-tag">NORMAL</span>
-                </button>
-                <button type="button" class="diff-pill" data-diff="HARD">
-                  <span class="diff-name">어려움</span>
-                  <span class="diff-tag">HARD</span>
-                </button>
-              </div>
-              <div id="diff-summary" class="diff-summary">
-                자원 240G | 강화비용 1.35x | 클리어보상 70%
-              </div>
+          <!-- Mode Segmented Tabs -->
+          <div class="mode-tab-bar" id="mode-tab-bar">
+            <button type="button" class="mode-tab-btn active" id="tab-mode-challenger">
+              <span class="tab-icon">⚔️</span>
+              <span class="tab-label">도전자 모드</span>
+            </button>
+            <button type="button" class="mode-tab-btn" id="tab-mode-admin">
+              <span class="tab-icon">👑</span>
+              <span class="tab-label">관리자 모드</span>
+            </button>
+          </div>
 
-              <ul class="mode-features">
-                <li>정통 순차 웨이브 디펜스 진행</li>
-                <li>적 처치 보상으로 포탑 해금 및 업그레이드</li>
-                <li>5웨이브마다 강력한 거대 보스 모선 출현</li>
-                <li>보스 처치 시 추가 포탑 슬롯 해금 권한 획득</li>
-              </ul>
-              <button class="btn-primary" id="btn-start-challenger" style="margin-top: 14px; padding: 8px 20px; font-size: 14px;">도전 시작</button>
+          <!-- Challenger Panel -->
+          <div class="launcher-panel active" id="panel-challenger">
+            <div class="panel-section-label">작전 난이도 선택</div>
+
+            <!-- 3-Tier Difficulty Picker -->
+            <div class="difficulty-picker" id="difficulty-picker">
+              <button type="button" class="diff-pill" data-diff="EASY">
+                <span class="diff-icon">🛡️</span>
+                <span class="diff-name">쉬움</span>
+                <span class="diff-tag">EASY</span>
+              </button>
+              <button type="button" class="diff-pill active" data-diff="NORMAL">
+                <span class="diff-icon">⚔️</span>
+                <span class="diff-name">보통</span>
+                <span class="diff-tag">NORMAL</span>
+              </button>
+              <button type="button" class="diff-pill" data-diff="HARD">
+                <span class="diff-icon">💀</span>
+                <span class="diff-name">어려움</span>
+                <span class="diff-tag">HARD</span>
+              </button>
             </div>
 
-            <!-- 관리자 모드 -->
-            <div class="mode-card admin" id="btn-choose-admin">
-              <div class="mode-icon">👑</div>
-              <div class="mode-title">관리자 모드</div>
-              <ul class="mode-features">
-                <li>무한 자원 (999,999G) 제공</li>
-                <li>모든 포탑 10레벨 (MAX) 즉시 해금</li>
-                <li>치트 패널: 전체 적 섬멸, 웨이브 스킵</li>
-                <li>보스 즉시 소환, 기지 무적 모드 지원</li>
-              </ul>
-              <button class="btn-primary"
-                style="margin-top: 18px; padding: 8px 20px; font-size: 14px; background: linear-gradient(135deg, #b537f2 0%, #7e22ce 100%); color: #fff;">관리자
-                권한 진입</button>
+            <!-- Difficulty Stats Telemetry Grid -->
+            <div class="diff-stats-grid">
+              <div class="diff-stat-item">
+                <span class="stat-item-lbl">시작 자금</span>
+                <span class="stat-item-val" id="stat-val-gold">240 G</span>
+              </div>
+              <div class="diff-stat-item">
+                <span class="stat-item-lbl">강화 비용</span>
+                <span class="stat-item-val" id="stat-val-upgrade">1.35x</span>
+              </div>
+              <div class="diff-stat-item">
+                <span class="stat-item-lbl">클리어 보상</span>
+                <span class="stat-item-val" id="stat-val-reward">70%</span>
+              </div>
             </div>
+
+            <div class="launcher-tip">
+              💡 5웨이브마다 거대 보스를 격파하여 포탑 슬롯을 확장하세요!
+            </div>
+
+            <button class="btn-primary btn-start-game" id="btn-start-challenger">
+              ⚔️ 작전 개시 (도전 시작)
+            </button>
+          </div>
+
+          <!-- Admin Panel -->
+          <div class="launcher-panel" id="panel-admin" style="display: none;">
+            <div class="admin-perks-box">
+              <div class="admin-perk-item">💎 무한 자원 (999,999G) 제공</div>
+              <div class="admin-perk-item">🔓 10개 모든 포탑 슬롯 무료 완전 해금</div>
+              <div class="admin-perk-item">⚡ 전체 적 섬멸 / 웨이브 스킵 / 기지 무적 치트 지원</div>
+            </div>
+
+            <button class="btn-primary btn-start-admin" id="btn-start-admin">
+              👑 관리자 권한으로 진입
+            </button>
           </div>
         </div>
       </div>
