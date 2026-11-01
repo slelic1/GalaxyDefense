@@ -21,15 +21,15 @@
       <!-- Top HUD Overlay -->
       <header id="top-hud">
         <div class="hud-stat-group">
-          <div class="hud-stat gold">
-            <span>💎 자원:</span>
+          <div class="hud-stat gold" title="자원">
+            <span>💎 </span><span class="stat-lbl">자원: </span>
             <span id="stat-gold">0</span>
           </div>
-          <div class="hud-stat wave">
+          <div class="hud-stat wave" title="현재 웨이브">
             <span id="stat-wave">Wave 1</span>
           </div>
-          <div class="hud-stat">
-            <span>🏆 점수:</span>
+          <div class="hud-stat" title="점수">
+            <span>🏆 </span><span class="stat-lbl">점수: </span>
             <span id="stat-score">0</span>
           </div>
           <div class="hud-stat mode-badge" id="stat-mode-badge">
@@ -37,41 +37,60 @@
           </div>
         </div>
 
-        <!-- Center Base Defense Status (Smart Peek Overlay: High transparency by default, clear on hover/touch) -->
-        <div id="top-base-status" class="top-base-status" title="기지 방어 상태 (클릭 또는 마우스를 올리면 선명해집니다)">
-          <div class="top-status-header">
-            <span class="status-shield-icon">🛡️</span>
-            <span class="status-title">BASE STATUS</span>
-          </div>
-          <div class="status-bars">
-            <div class="status-bar-row">
-              <span class="bar-lbl hull">HULL</span>
-              <div class="bar-track">
-                <div class="bar-fill hp" id="console-hp-bar" style="width: 100%;"></div>
-              </div>
-              <span class="bar-num" id="console-hp-val">1000/1000</span>
-            </div>
-            <div class="status-bar-row">
-              <span class="bar-lbl shield">SHLD</span>
-              <div class="bar-track">
-                <div class="bar-fill shield" id="console-shield-bar" style="width: 100%;"></div>
-              </div>
-              <span class="bar-num" id="console-shield-val">500/500</span>
-            </div>
-          </div>
-        </div>
-
         <div class="hud-actions">
-          <button class="btn-hud" id="btn-pause-toggle">⏸️ 일시정지</button>
-          <button class="btn-hud" id="btn-sound-toggle">🔊 사운드 ON</button>
+          <!-- Base Defense Status Toggle Button -->
+          <button class="btn-hud icon-toggle" id="btn-base-toggle" title="기지 방어 상태 (클릭하여 상세 확인)">
+            <span class="status-shield-icon">🛡️</span>
+            <span id="stat-base-hp-pct" class="hp-badge">100%</span>
+          </button>
+          <!-- Admin Cheat Toggle Button (Only in Admin Mode) -->
+          <button class="btn-hud admin-toggle" id="btn-admin-toggle" title="관리자 치트 메뉴" style="display: none;">
+            <span class="btn-icon">⚡</span>
+            <span class="btn-text"> 치트</span>
+          </button>
+          <button class="btn-hud icon-btn" id="btn-pause-toggle" title="일시정지">
+            <span class="btn-icon">⏸️</span>
+            <span class="btn-text"> 일시정지</span>
+          </button>
+          <button class="btn-hud icon-btn" id="btn-sound-toggle" title="사운드 설정">
+            <span class="btn-icon">🔊</span>
+            <span class="btn-text"> 사운드 ON</span>
+          </button>
         </div>
       </header>
+
+      <!-- Center Base Defense Status Floating Popover -->
+      <div id="top-base-status" class="top-base-status">
+        <div class="top-status-header">
+          <div class="status-header-title">
+            <span class="status-shield-icon">🛡️</span>
+            <span class="status-title">행성 본부 방어 상태</span>
+          </div>
+          <button class="btn-panel-close" id="btn-base-status-close" title="닫기">✕</button>
+        </div>
+        <div class="status-bars">
+          <div class="status-bar-row">
+            <span class="bar-lbl hull">HULL</span>
+            <div class="bar-track">
+              <div class="bar-fill hp" id="console-hp-bar" style="width: 100%;"></div>
+            </div>
+            <span class="bar-num" id="console-hp-val">1000/1000</span>
+          </div>
+          <div class="status-bar-row">
+            <span class="bar-lbl shield">SHLD</span>
+            <div class="bar-track">
+              <div class="bar-fill shield" id="console-shield-bar" style="width: 100%;"></div>
+            </div>
+            <span class="bar-num" id="console-shield-val">500/500</span>
+          </div>
+        </div>
+      </div>
 
       <!-- Admin Panel (Only active in Admin Mode) -->
       <div id="admin-panel">
         <h3>
           <span>⚡ 관리자 치트 패널</span>
-          <span style="font-size: 10px; color: #f5d0fe;">ADMIN</span>
+          <button class="btn-panel-close" id="btn-admin-close" title="닫기">✕</button>
         </h3>
         <div class="admin-grid">
           <button class="btn-admin" id="btn-admin-kill">💥 전체 적 섬멸</button>
@@ -80,6 +99,7 @@
           <button class="btn-admin" id="btn-admin-god">🛡️ 무적 모드</button>
           <button class="btn-admin" id="btn-admin-heal">💖 기지 완전수리</button>
           <button class="btn-admin" id="btn-admin-speed">배속 (1x)</button>
+          <button class="btn-admin" id="btn-admin-slots">🔓 전체 슬롯 해금</button>
         </div>
       </div>
 
@@ -89,6 +109,7 @@
         <div class="popup-info">
           <div id="popup-damage">공격력: 0</div>
           <div id="popup-range">사거리: 0</div>
+          <div id="popup-passive" style="color: var(--accent-gold); font-size: 11px; margin-top: 4px; display: none;"></div>
         </div>
         <div class="popup-buttons">
           <button class="btn-popup" id="popup-btn-upgrade">강화</button>
@@ -96,23 +117,72 @@
         </div>
       </div>
 
+      <!-- Slot Purchase Popup -->
+      <div id="slot-popup">
+        <h4 id="slot-popup-title">🔒 포탑 슬롯 확장</h4>
+        <div class="popup-info">
+          <div id="slot-popup-desc">새로운 포탑을 배치할 수 있는 슬롯을 잠금 해제합니다.</div>
+          <div id="slot-popup-req" style="color: #f87171; font-size: 11px; margin-top: 5px; line-height: 1.35; display: none;"></div>
+          <div id="slot-popup-cost" style="color: var(--accent-gold); font-weight: bold; margin-top: 6px; font-size: 14px;">비용: 800 G</div>
+        </div>
+        <div class="popup-buttons">
+          <button class="btn-popup slot-buy" id="slot-btn-buy">해금하기</button>
+          <button class="btn-popup" id="slot-btn-cancel">취소</button>
+        </div>
+      </div>
+
+      <!-- Wave Reward Research Modal (3-choice) -->
+      <div class="modal-overlay" id="reward-modal" style="display: none;">
+        <div class="modal-content">
+          <h2 class="modal-title">⚡ 웨이브 방어 성공: 차원 연구 보상</h2>
+          <p class="modal-desc">
+            방어선 강화를 위한 글로벌 차원 연구 프로토콜을 1개 선택하세요.<br>
+            선택한 효과는 모든 포탑과 전장에 영구적으로 적용됩니다.
+          </p>
+          <div class="reward-options-container" id="reward-options-container">
+            <!-- 3 options dynamically populated -->
+          </div>
+          <button class="btn-hud" id="btn-reward-skip">선택 건너뛰기</button>
+        </div>
+      </div>
+
       <!-- Mode Selection Modal (Start Screen) -->
       <div class="modal-overlay" id="mode-modal">
         <div class="modal-content">
           <h1 class="modal-title">GALAXY DEFENSE</h1>
-          <p class="modal-desc">외계 함대의 침공으로부터 행성 본부를 방어하세요.<br>플레이하실 모드를 선택해 주세요.</p>
+          <p class="modal-desc">외계 함대의 침공으로부터 행성 본부를 방어하세요.<br>플레이하실 모드와 난이도를 선택해 주세요.</p>
           <div class="mode-selection-container">
             <!-- 도전자 모드 -->
             <div class="mode-card challenger" id="btn-choose-challenger">
               <div class="mode-icon">⚔️</div>
               <div class="mode-title">도전자 모드</div>
+
+              <!-- Difficulty Selection Tabs -->
+              <div class="difficulty-picker" id="difficulty-picker">
+                <button type="button" class="diff-pill" data-diff="EASY">
+                  <span class="diff-name">쉬움</span>
+                  <span class="diff-tag">EASY</span>
+                </button>
+                <button type="button" class="diff-pill active" data-diff="NORMAL">
+                  <span class="diff-name">보통</span>
+                  <span class="diff-tag">NORMAL</span>
+                </button>
+                <button type="button" class="diff-pill" data-diff="HARD">
+                  <span class="diff-name">어려움</span>
+                  <span class="diff-tag">HARD</span>
+                </button>
+              </div>
+              <div id="diff-summary" class="diff-summary">
+                자원 240G | 강화비용 1.35x | 클리어보상 70%
+              </div>
+
               <ul class="mode-features">
                 <li>정통 순차 웨이브 디펜스 진행</li>
                 <li>적 처치 보상으로 포탑 해금 및 업그레이드</li>
                 <li>5웨이브마다 강력한 거대 보스 모선 출현</li>
-                <li>전략적인 실드 관리 및 스킬 쿨타임 운용</li>
+                <li>보스 처치 시 추가 포탑 슬롯 해금 권한 획득</li>
               </ul>
-              <button class="btn-primary" style="margin-top: 18px; padding: 8px 20px; font-size: 14px;">도전 시작</button>
+              <button class="btn-primary" id="btn-start-challenger" style="margin-top: 14px; padding: 8px 20px; font-size: 14px;">도전 시작</button>
             </div>
 
             <!-- 관리자 모드 -->
@@ -158,9 +228,11 @@
             style="background: linear-gradient(135deg, #ef4444 0%, #f97316 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
             기지 함락</h1>
           <p class="modal-desc">외계 함대의 공세를 버티지 못하고 행성 방어선이 붕괴되었습니다.</p>
-          <div style="margin: 20px 0; font-size: 18px; color: var(--text-main); line-height: 2;">
+          <div style="margin: 18px 0; font-size: 16px; color: var(--text-main); line-height: 1.8;">
+            <div>플레이 난이도: <span id="final-diff" style="color: var(--border-cyan); font-weight: bold;">보통</span></div>
             <div>최종 도달 웨이브: <span id="final-wave" style="color: var(--accent-gold); font-weight: bold;">0</span></div>
-            <div>최종 점수: <span id="final-score" style="color: var(--border-cyan); font-weight: bold;">0</span></div>
+            <div>보스 모선 격파: <span id="final-boss" style="color: #f87171; font-weight: bold;">0회</span></div>
+            <div>최종 점수: <span id="final-score" style="color: #38bdf8; font-weight: bold;">0</span></div>
           </div>
           <button class="btn-primary" id="btn-restart">다시 시작하기</button>
         </div>

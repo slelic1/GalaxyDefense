@@ -234,6 +234,64 @@ const TURRET_TYPES = {
   }
 };
 
+// Turret Level Passives and Combo Synergies
+const TURRET_PASSIVES = {
+  laser: [
+    { level: 3, name: '관통 사격', desc: '발사체가 첫 번째 적을 관통하여 2체 연속 타격' },
+    { level: 5, name: '과열 증폭', desc: '화염/EMP 상태이상 적 타격 시 피해 +60% 증폭' },
+    { level: 7, name: '초고속 연사', desc: '재장전 쿨다운 25% 추가 감소' },
+    { level: 10, name: '궁극: 트윈 빔', desc: '동시에 2줄기의 고출력 관통 레이저 일제 사격' }
+  ],
+  plasma: [
+    { level: 3, name: '플라즈마 잔류장', desc: '폭발 위치에 플라즈마 잔류장이 남아 지속 피해' },
+    { level: 5, name: '마그네틱 흡인', desc: '폭발 시 반경 내 적들을 폭심지로 순간 견인' },
+    { level: 7, name: '연쇄 파편', desc: '폭발 직후 주변으로 미니 플라즈마 파편 분출' },
+    { level: 10, name: '궁극: 초신성 폭격', desc: '폭발 반경 2배 확장 및 적 1초 기절' }
+  ],
+  missile: [
+    { level: 3, name: '집속 자탄', desc: '폭발 시 2개의 추적 소형 자탄 방출' },
+    { level: 5, name: '취약 표식', desc: '피격된 적은 3.5초간 모든 받는 피해 +35%' },
+    { level: 7, name: '스마트 유도', desc: '타겟 사망 시 주변 적을 향해 탄두 즉시 궤도 전환' },
+    { level: 10, name: '궁극: 더블 살보', desc: '한 번에 2발의 유도 미사일 동시 발사' }
+  ],
+  emp: [
+    { level: 3, name: '방어막 분쇄', desc: 'EMP에 맞은 적 방어력 35% 약화 (피해 증폭)' },
+    { level: 5, name: '전자기 구속', desc: '감속 효과가 80%로 대폭 강화' },
+    { level: 7, name: '충격파 스턴', desc: '명중 시 0.8초간 적을 완전 정지' },
+    { level: 10, name: '궁극: 전자기 폭풍', desc: '충격 반경 1.5배 및 화면 전체 적 2초간 감속' }
+  ],
+  repair: [
+    { level: 3, name: '증폭 나노봇', desc: '인접 포탑들의 공격력 +15% 증가 오라' },
+    { level: 5, name: '실드 리차저', desc: '수리 시 기지 방어막을 추가로 +35 충전' },
+    { level: 7, name: '수호 드론 요격', desc: '수리 주기마다 전투 드론 1기가 적을 요격' },
+    { level: 10, name: '궁극: 요새 과충전', desc: '기지 실드 활성 시 전 포탑 사격 속도 +25%' }
+  ],
+  sniper: [
+    { level: 3, name: '초전도 관통탄', desc: '탄도 상의 모든 적을 일직선 완전 관통' },
+    { level: 5, name: '약점 조준', desc: '체력 40% 이하인 적에게 2배 치명타' },
+    { level: 7, name: '헤드샷 크리티컬', desc: '35% 확률로 3배 파괴 피해' },
+    { level: 10, name: '궁극: 오비탈 레일', desc: '초광역 충격파를 동반하는 초대형 탄도 사격' }
+  ],
+  tesla: [
+    { level: 3, name: '전도성 과부하', desc: '전기 연쇄 횟수 +3회 추가 전이' },
+    { level: 5, name: '정전기 쇼크', desc: '연쇄 피격 적 0.5초 마비' },
+    { level: 7, name: '연쇄 증폭', desc: '전기 전이 시마다 피해가 감소하지 않고 +15% 증폭' },
+    { level: 10, name: '궁극: 플라즈마 아크', desc: '지속 아크 방전으로 화면 내 다수 적 타격' }
+  ],
+  flamethrower: [
+    { level: 3, name: '화염 확산', desc: '불타는 적 주변으로 화염 지속 전파' },
+    { level: 5, name: '열역학 반응', desc: '냉동/EMP 상태이상 적에게 화염 피해 2.2배' },
+    { level: 7, name: '융해 지옥불', desc: '화염 지속 피해에 적 최대 체력 2% 비례 피해 추가' },
+    { level: 10, name: '궁극: 소이탄 투척', desc: '사거리 1.5배 증가 및 지면 화염 장벽 형성' }
+  ],
+  freezer: [
+    { level: 3, name: '빙결 파열', desc: '냉동 상태인 적 피격 시 주변에 얼음 파편 비산' },
+    { level: 5, name: '절대영도', desc: '냉동 지속 시간 +1.5초 및 고티어 적도 강력 감속' },
+    { level: 7, name: '영구 동토', desc: '파동 중심에 3초간 지속되는 냉각 필드 잔류' },
+    { level: 10, name: '궁극: 빙하기 도래', desc: '화면 전체 적 1.5초간 동결' }
+  ]
+};
+
 class Turret {
   constructor(slotIndex, x, y, type = 'laser') {
     this.slotIndex = slotIndex;
@@ -249,31 +307,74 @@ class Turret {
 
   applyStats() {
     const config = TURRET_TYPES[this.type];
-    const multiplier = 1 + (this.level - 1) * 0.40;
+    const isTranscend = this.level > 10;
+    const baseMultiplier = isTranscend 
+      ? (1 + 9 * 0.40 + (this.level - 10) * 0.45) 
+      : (1 + (this.level - 1) * 0.40);
+
     this.name = config.name;
-    this.range = config.range * (1 + (this.level - 1) * 0.08);
-    this.damage = config.damage ? config.damage * multiplier : 0;
-    // cooldown scaling: Freezer scales more conservatively to avoid excessive fire rate at high levels
+
+    // Range scaling
+    let r = config.range * (1 + (Math.min(10, this.level) - 1) * 0.08);
+    if (isTranscend) r *= (1 + (this.level - 10) * 0.03);
+    this.range = r;
+
+    // Damage scaling
+    this.damage = config.damage ? config.damage * baseMultiplier : 0;
+
+    // Cooldown scaling: Freezer scales conservatively
     if (this.type === 'freezer') {
-      this.cooldown = Math.max(30, Math.floor(config.cooldown / (1 + (this.level - 1) * 0.08)));
+      this.cooldown = Math.max(25, Math.floor(config.cooldown / (1 + (Math.min(10, this.level) - 1) * 0.08)));
     } else {
-      this.cooldown = Math.max(4, Math.floor(config.cooldown / (1 + (this.level - 1) * 0.12)));
+      this.cooldown = Math.max(3, Math.floor(config.cooldown / (1 + (Math.min(10, this.level) - 1) * 0.12)));
     }
-    this.splashRadius = config.splashRadius ? config.splashRadius * (1 + (this.level - 1) * 0.10) : 0;
-    this.slowDuration = config.slowDuration ? config.slowDuration + (this.level - 1) * 10 : 0;
-    this.healAmount = config.healAmount ? config.healAmount * multiplier : 0;
-    this.chainCount = config.chainCount ? (config.chainCount + Math.floor((this.level - 1) * 0.7)) : 0;
+
+    // Laser Lv.7 passive
+    if (this.type === 'laser' && this.level >= 7) {
+      this.cooldown = Math.max(3, Math.floor(this.cooldown * 0.75));
+    }
+
+    this.splashRadius = config.splashRadius ? config.splashRadius * (1 + (Math.min(10, this.level) - 1) * 0.10) : 0;
+    if (this.type === 'plasma' && this.level >= 10) {
+      this.splashRadius *= 1.8;
+    }
+
+    this.slowDuration = config.slowDuration ? config.slowDuration + (Math.min(10, this.level) - 1) * 10 : 0;
+    this.healAmount = config.healAmount ? config.healAmount * baseMultiplier : 0;
+    this.chainCount = config.chainCount ? (config.chainCount + Math.floor((this.level - 1) * 0.8)) : 0;
+    if (this.type === 'tesla' && this.level >= 3) this.chainCount += 3;
+
     this.chainRange = config.chainRange ? (config.chainRange + (this.level - 1) * 12) : 0;
-    this.burnDuration = config.burnDuration ? config.burnDuration + (this.level - 1) * 12 : 0; // milder growth
-    // Freeze duration grows more slowly and is capped to avoid permanent lockdowns
+    this.burnDuration = config.burnDuration ? config.burnDuration + (this.level - 1) * 12 : 0;
+
     if (config.freezeDuration) {
-      this.freezeDuration = Math.min(config.freezeDuration + (this.level - 1) * 6, 180);
+      let fd = config.freezeDuration + (this.level - 1) * 8;
+      if (this.type === 'freezer' && this.level >= 5) fd += 60;
+      this.freezeDuration = Math.min(fd, 220);
     } else {
       this.freezeDuration = 0;
     }
+
+    // Global research buffs
+    if (typeof window !== 'undefined' && window.game && window.game.globalBuffs) {
+      const gb = window.game.globalBuffs;
+      if (gb.damage) this.damage *= (1 + gb.damage);
+      if (gb.range) this.range *= (1 + gb.range);
+      if (gb.cooldown) this.cooldown = Math.max(3, Math.floor(this.cooldown * (1 - gb.cooldown)));
+    }
+
     this.color = config.color;
-    // Balanced exponential scaling to Lv 10
-    this.upgradeCost = Math.round(config.cost * Math.pow(1.35, this.level - 1));
+
+    // Upgrade Cost scaling:
+    // Lv 1~9: cost * 1.35^(level - 1)
+    // Lv 10+ (초월): 1.35^9 * 1.45^(level - 10)
+    const diffUpgradeMult = window.game?.difficultySettings?.upgradeCostMult || 1.0;
+    if (this.level < 10) {
+      this.upgradeCost = Math.round(config.cost * Math.pow(1.35, this.level - 1) * diffUpgradeMult);
+    } else {
+      const base10 = config.cost * Math.pow(1.35, 9);
+      this.upgradeCost = Math.round(base10 * Math.pow(1.45, this.level - 10) * diffUpgradeMult);
+    }
   }
 
   upgrade() {
@@ -304,11 +405,23 @@ class Turret {
     // Repair Drone Type Logic
     if (this.type === 'repair') {
       if (this.cooldownTimer <= 0) {
-        base.repair(this.healAmount, this.healAmount * 0.6);
+        const bonusShield = this.level >= 5 ? 35 : 0;
+        base.repair(this.healAmount, this.healAmount * 0.6 + bonusShield);
         this.cooldownTimer = this.cooldown;
         if (fx) {
           fx.createHitSpark(this.x, this.y - 10, '#10b981', 4);
           fx.addDamageText(base.x, base.y - 20, `+${Math.round(this.healAmount)}`, false);
+        }
+
+        // Lv.7 Passive: Guardian Attack Drone sortie
+        if (this.level >= 7 && enemies.length > 0) {
+          const nearest = enemies.find(e => !e.isDead);
+          if (nearest) {
+            projectiles.push(new Projectile(
+              this.x, this.y - 15, nearest.x, nearest.y,
+              18, 70 * (1 + (this.level - 7) * 0.3), '#10b981', 'laser', 0, this.level
+            ));
+          }
         }
       }
       return;
@@ -337,18 +450,33 @@ class Turret {
 
     // Muzzle flash particle effect at turret tip
     if (fx && this.type !== 'repair') {
-      const tipDist = 20 + lvl * 2;
+      const tipDist = 20 + Math.min(10, lvl) * 2;
       const muzzleX = this.x + Math.cos(this.angle) * tipDist;
       const muzzleY = this.y + Math.sin(this.angle) * tipDist;
-      fx.createHitSpark(muzzleX, muzzleY, this.color, 2 + lvl);
+      fx.createHitSpark(muzzleX, muzzleY, this.color, 2 + Math.min(10, lvl));
     }
 
     if (this.type === 'laser') {
       sounds.playLaser();
-      projectiles.push(new Projectile(
-        this.x, this.y, this.target.x, this.target.y,
-        15 + lvl * 1.5, this.damage, this.color, 'laser', 0, lvl
-      ));
+      // Lv.10+ Ultimate: Twin Beam (Dual simultaneous piercing lasers)
+      if (lvl >= 10) {
+        const offsetDist = 6;
+        const perpX = -Math.sin(this.angle) * offsetDist;
+        const perpY = Math.cos(this.angle) * offsetDist;
+        projectiles.push(new Projectile(
+          this.x + perpX, this.y + perpY, this.target.x + perpX, this.target.y + perpY,
+          18 + lvl * 1.5, this.damage * 0.8, this.color, 'laser', 0, lvl
+        ));
+        projectiles.push(new Projectile(
+          this.x - perpX, this.y - perpY, this.target.x - perpX, this.target.y - perpY,
+          18 + lvl * 1.5, this.damage * 0.8, this.color, 'laser', 0, lvl
+        ));
+      } else {
+        projectiles.push(new Projectile(
+          this.x, this.y, this.target.x, this.target.y,
+          15 + lvl * 1.5, this.damage, this.color, 'laser', 0, lvl
+        ));
+      }
     } else if (this.type === 'plasma') {
       sounds.playPlasma();
       projectiles.push(new Projectile(
@@ -357,10 +485,26 @@ class Turret {
       ));
     } else if (this.type === 'missile') {
       sounds.playMissile();
-      projectiles.push(new HomingMissile(
-        this.x, this.y, this.target,
-        7 + lvl * 0.8, this.damage, this.color, this.splashRadius, lvl
-      ));
+      // Lv.10+ Ultimate: Double Salvo
+      if (lvl >= 10) {
+        projectiles.push(new HomingMissile(
+          this.x - 10, this.y, this.target,
+          8 + lvl * 0.8, this.damage * 0.85, this.color, this.splashRadius, lvl
+        ));
+        setTimeout(() => {
+          if (this.target && !this.target.isDead) {
+            projectiles.push(new HomingMissile(
+              this.x + 10, this.y, this.target,
+              8 + lvl * 0.8, this.damage * 0.85, this.color, this.splashRadius, lvl
+            ));
+          }
+        }, 100);
+      } else {
+        projectiles.push(new HomingMissile(
+          this.x, this.y, this.target,
+          7 + lvl * 0.8, this.damage, this.color, this.splashRadius, lvl
+        ));
+      }
     } else if (this.type === 'emp') {
       sounds.playEMP();
       // Level scaling shockwave
@@ -368,7 +512,7 @@ class Turret {
       if (fx) {
         for (let w = 0; w < waveCount; w++) {
           setTimeout(() => {
-            if (fx) fx.shockwaves.push(new Shockwave(this.x, this.y, this.range * (1 + w * 0.15), this.color, 24 + lvl * 3));
+            if (fx) fx.shockwaves.push(new Shockwave(this.x, this.y, this.range * (1 + w * 0.15), this.color, 24 + Math.min(10, lvl) * 3));
           }, w * 120);
         }
       }
@@ -377,7 +521,7 @@ class Turret {
       sounds.playSniper();
       const p = new Projectile(
         this.x, this.y, this.target.x, this.target.y,
-        30 + lvl * 2, this.damage, this.color, 'sniper', 0, lvl
+        32 + lvl * 2, this.damage, this.color, 'sniper', 0, lvl
       );
       projectiles.push(p);
     } else if (this.type === 'tesla') {
@@ -408,7 +552,7 @@ class Turret {
       if (fx) {
         for (let w = 0; w < waveCount; w++) {
           setTimeout(() => {
-            if (fx) fx.shockwaves.push(new Shockwave(this.x, this.y, this.range * (1 + w * 0.2), this.color, 28 + lvl * 4));
+            if (fx) fx.shockwaves.push(new Shockwave(this.x, this.y, this.range * (1 + w * 0.2), this.color, 28 + Math.min(10, lvl) * 4));
           }, w * 150);
         }
       }
@@ -559,15 +703,17 @@ class Turret {
       '', '#94a3b8', '#38bdf8', '#38bdf8', '#a78bfa',
       '#a78bfa', '#f97316', '#f97316', '#ffbe0b', '#ffbe0b', '#f43f5e'
     ];
-    ctx.fillStyle = badgeColors[lvl] || '#fff';
-    ctx.font = `bold ${Math.min(14, 8 + lvl * 0.7)}px "Segoe UI", sans-serif`;
+    const isTranscend = lvl > 10;
+    const badgeColor = isTranscend ? '#f43f5e' : (badgeColors[lvl] || '#fff');
+    ctx.fillStyle = badgeColor;
+    ctx.font = `bold ${Math.min(14, 8 + Math.min(10, lvl) * 0.7)}px "Segoe UI", sans-serif`;
     ctx.textAlign = 'center';
     if (lvl >= 8) {
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = badgeColors[lvl] || '#ffbe0b';
+      ctx.shadowBlur = isTranscend ? 14 : 10;
+      ctx.shadowColor = isTranscend ? '#f43f5e' : (badgeColors[lvl] || '#ffbe0b');
     }
-    const labelText = lvl >= 10 ? 'Lv.10 [MAX]' : `Lv.${lvl}`;
-    ctx.fillText(labelText, this.x, this.y + 25 + lvl * 1.3);
+    const labelText = isTranscend ? `EX-Lv.${lvl}` : (lvl === 10 ? 'Lv.10 [MAX]' : `Lv.${lvl}`);
+    ctx.fillText(labelText, this.x, this.y + 25 + Math.min(10, lvl) * 1.3);
     ctx.shadowBlur = 0;
   }
 
@@ -595,60 +741,69 @@ class Enemy {
     this.isDead = false;
     this.slowTimer = 0;
     this.slowFactor = 1;
+    this.vulnTimer = 0;
+    this.vulnFactor = 1;
+    this.stunTimer = 0;
+    this.burnTimer = 0;
+    this.burnDamage = 0;
     this.setupType(type, waveMultiplier);
   }
 
   setupType(type, mult) {
+    const diffHpMult = window.game?.difficultySettings?.enemyHpMult || 1.0;
+    const diffBountyMult = window.game?.difficultySettings?.goldBountyMult || 1.0;
+    const finalHpMult = mult * diffHpMult;
+
     switch (type) {
       case 'scout':
-        this.maxHp = 65 * mult;
+        this.maxHp = 65 * finalHpMult;
         this.speed = 2.4;
         this.size = 12;
         this.damage = 25;
-        this.bounty = Math.round(15 * (1 + (mult - 1) * 0.3));
+        this.bounty = Math.round(15 * (1 + (mult - 1) * 0.3) * diffBountyMult);
         this.color = '#38bdf8';
         break;
       case 'fighter':
-        this.maxHp = 160 * mult;
+        this.maxHp = 160 * finalHpMult;
         this.speed = 1.6;
         this.size = 16;
         this.damage = 50;
-        this.bounty = Math.round(28 * (1 + (mult - 1) * 0.3));
+        this.bounty = Math.round(28 * (1 + (mult - 1) * 0.3) * diffBountyMult);
         this.color = '#a855f7';
         break;
       case 'cruiser':
-        this.maxHp = 520 * mult;
+        this.maxHp = 520 * finalHpMult;
         this.speed = 0.95;
         this.size = 24;
         this.damage = 120;
-        this.bounty = Math.round(75 * (1 + (mult - 1) * 0.3));
+        this.bounty = Math.round(75 * (1 + (mult - 1) * 0.3) * diffBountyMult);
         this.color = '#f59e0b';
         break;
       case 'stealth':
-        this.maxHp = 110 * mult;
+        this.maxHp = 110 * finalHpMult;
         this.speed = 2.9;
         this.size = 13;
         this.damage = 40;
-        this.bounty = Math.round(38 * (1 + (mult - 1) * 0.3));
+        this.bounty = Math.round(38 * (1 + (mult - 1) * 0.3) * diffBountyMult);
         this.color = '#06b6d4';
         this.stealthTimer = 0;
         break;
       case 'destroyer':
         // High tier Void Destroyer (Wave 5+)
-        this.maxHp = 1350 * mult;
+        this.maxHp = 1350 * finalHpMult;
         this.speed = 0.8;
         this.size = 30;
         this.damage = 220;
-        this.bounty = Math.round(140 * (1 + (mult - 1) * 0.3));
+        this.bounty = Math.round(140 * (1 + (mult - 1) * 0.3) * diffBountyMult);
         this.color = '#ec4899';
         this.shootTimer = 0;
         break;
       case 'boss':
-        this.maxHp = 4500 * mult;
+        this.maxHp = 4500 * finalHpMult;
         this.speed = 0.45;
         this.size = 50;
         this.damage = 400;
-        this.bounty = Math.round(600 * (1 + (mult - 1) * 0.3));
+        this.bounty = Math.round(600 * (1 + (mult - 1) * 0.3) * diffBountyMult);
         this.color = '#ef4444';
         this.shootTimer = 0;
         break;
@@ -657,18 +812,83 @@ class Enemy {
   }
 
   applySlow(duration, factor = 0.4) {
-    this.slowTimer = duration;
+    this.slowTimer = Math.max(this.slowTimer, duration);
     this.slowFactor = factor;
   }
 
-  takeDamage(amount, fx) {
-    this.hp -= amount;
+  applyVuln(duration, factor = 1.35) {
+    this.vulnTimer = Math.max(this.vulnTimer, duration);
+    this.vulnFactor = factor;
+  }
+
+  applyStun(duration) {
+    this.stunTimer = Math.max(this.stunTimer, duration);
+  }
+
+  takeDamage(amount, fx, sourceTurretType = '') {
+    let finalDamage = amount;
+
+    // Vulnerability mark (Missile Lv.5, EMP Lv.3)
+    if (this.vulnTimer > 0) {
+      finalDamage *= this.vulnFactor;
+    }
+
+    // Global research crit check
+    if (typeof window !== 'undefined' && window.game && window.game.globalBuffs && window.game.globalBuffs.crit) {
+      if (Math.random() < 0.12) {
+        finalDamage *= 2.0;
+        if (fx) fx.addDamageText(this.x, this.y - 14, '치명타!', true);
+      }
+    }
+
+    // Combo / Synergy Interactions:
+    // 1. Thermodynamic Clash: Burning enemy hit by Ice/EMP -> Steam explosion
+    if (this.burnTimer > 0 && (sourceTurretType === 'freezer' || sourceTurretType === 'emp')) {
+      finalDamage *= 1.8;
+      if (fx) {
+        fx.createExplosion(this.x, this.y, '#e0f2fe', 16, 1.2);
+        fx.addDamageText(this.x, this.y - 20, '💥 열역학 충돌!', true);
+      }
+      this.burnTimer = 0; // consumed
+    }
+
+    // 2. Shatter Ice: Frozen/Slowed enemy hit by Sniper / Laser -> Critical shatter
+    if (this.slowTimer > 0 && this.slowFactor < 0.5 && (sourceTurretType === 'sniper' || sourceTurretType === 'laser')) {
+      finalDamage *= 1.5;
+      if (fx) {
+        fx.createHitSpark(this.x, this.y, '#67e8f9', 8);
+        fx.addDamageText(this.x, this.y - 16, '❄️ 빙결 분쇄!', true);
+      }
+    }
+
+    // 3. Overload Induction: EMP-debuffed enemy hit by Laser or Flamethrower
+    if (this.vulnTimer > 0 && (sourceTurretType === 'laser' || sourceTurretType === 'flamethrower')) {
+      finalDamage *= 1.4;
+      if (fx && Math.random() < 0.4) {
+        fx.createHitSpark(this.x, this.y, '#00f0ff', 6);
+        fx.addDamageText(this.x, this.y - 12, '⚡ 과부하!', true);
+      }
+    }
+
+    this.hp -= finalDamage;
     if (this.hp <= 0) {
       this.isDead = true;
     }
+    return finalDamage;
   }
 
   update(base, projectiles, fx) {
+    if (this.stunTimer > 0) {
+      this.stunTimer--;
+      // completely halted while stunned
+      return;
+    }
+
+    if (this.vulnTimer > 0) {
+      this.vulnTimer--;
+      if (this.vulnTimer === 0) this.vulnFactor = 1;
+    }
+
     if (this.slowTimer > 0) {
       this.slowTimer--;
       if (this.slowTimer === 0) this.slowFactor = 1;
@@ -823,6 +1043,7 @@ class Projectile {
     this.splashRadius = splashRadius;
     this.level = level;
     this.isDead = false;
+    this.piercingCount = (type === 'sniper' && level >= 3) ? 999 : (type === 'laser' && level >= 3 ? 1 : 0);
 
     const dx = targetX - x;
     const dy = targetY - y;
@@ -872,18 +1093,18 @@ class Projectile {
   }
 
   hit(enemy, enemies, fx) {
-    this.isDead = true;
     const lvl = this.level;
 
     if (this.splashRadius > 0) {
+      this.isDead = true;
       // Area of effect damage - scales impact with level
-      const explosionCount = 14 + lvl * 6;
-      const explosionIntensity = 1 + lvl * 0.25;
+      const explosionCount = 14 + Math.min(10, lvl) * 6;
+      const explosionIntensity = 1 + Math.min(10, lvl) * 0.25;
       fx.createExplosion(this.x, this.y, this.color, explosionCount, explosionIntensity);
 
       // Shockwave for high level plasma
       if (lvl >= 3) {
-        fx.shockwaves.push(new Shockwave(this.x, this.y, this.splashRadius * 1.1, this.color, 18 + lvl * 3));
+        fx.shockwaves.push(new Shockwave(this.x, this.y, this.splashRadius * 1.1, this.color, 18 + Math.min(10, lvl) * 3));
       }
 
       for (let e of enemies) {
@@ -891,16 +1112,51 @@ class Projectile {
         const d = Math.hypot(e.x - this.x, e.y - this.y);
         if (d <= this.splashRadius) {
           const falloff = 1 - (d / this.splashRadius) * 0.4;
-          e.takeDamage(this.damage * falloff, fx);
-          fx.addDamageText(e.x, e.y, this.damage * falloff, lvl >= 4);
+          
+          // Plasma Lv.5+: Magnetic Pull towards epicenter
+          if (this.type === 'plasma' && lvl >= 5 && d > 8) {
+            e.x += ((this.x - e.x) / d) * 12;
+            e.y += ((this.y - e.y) / d) * 12;
+          }
+
+          // Plasma Lv.10+: Ultimate Supernova Stun
+          if (this.type === 'plasma' && lvl >= 10) {
+            e.applyStun(60);
+          }
+
+          const appliedDmg = e.takeDamage(this.damage * falloff, fx, this.type);
+          fx.addDamageText(e.x, e.y, appliedDmg, lvl >= 4);
         }
       }
     } else {
-      // Single target hit
-      enemy.takeDamage(this.damage, fx);
-      const sparkCount = 4 + lvl * 3;
+      // Single target / Piercing hit
+      let hitDamage = this.damage;
+
+      // Sniper Lv.5+: Execute low health target
+      if (this.type === 'sniper' && lvl >= 5 && enemy.hp < enemy.maxHp * 0.4) {
+        hitDamage *= 2.0;
+        if (fx) fx.addDamageText(enemy.x, enemy.y - 12, '약점 저격!', true);
+      }
+      // Sniper Lv.7+: Headshot Critical
+      if (this.type === 'sniper' && lvl >= 7 && Math.random() < 0.35) {
+        hitDamage *= 3.0;
+        if (fx) fx.addDamageText(enemy.x, enemy.y - 20, '헤드샷 3X!', true);
+      }
+
+      const appliedDmg = enemy.takeDamage(hitDamage, fx, this.type);
+      const sparkCount = 4 + Math.min(10, lvl) * 3;
       fx.createHitSpark(this.x, this.y, this.color, sparkCount);
-      fx.addDamageText(enemy.x, enemy.y, this.damage, lvl >= 4);
+      fx.addDamageText(enemy.x, enemy.y, appliedDmg, lvl >= 4);
+
+      if (this.piercingCount > 0) {
+        this.piercingCount--;
+        this.damage *= 0.75; // slight falloff for next target
+        this.x += this.vx * 1.5;
+        this.y += this.vy * 1.5;
+        this.isDead = false;
+      } else {
+        this.isDead = true;
+      }
 
       // Level 5 Critical Flash Shockwave
       if (lvl >= 5) {
@@ -1000,6 +1256,20 @@ class HomingMissile {
   }
 
   update(enemies, fx) {
+    const lvl = this.level;
+    // Smart retargeting for Lv.7+
+    if (!this.target || this.target.isDead) {
+      if (lvl >= 7) {
+        let best = null; let minD = 500;
+        for (let e of enemies) {
+          if (e.isDead) continue;
+          const d = Math.hypot(e.x - this.x, e.y - this.y);
+          if (d < minD) { minD = d; best = e; }
+        }
+        if (best) this.target = best;
+      }
+    }
+
     if (this.target && !this.target.isDead) {
       const targetAngle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
       let diff = targetAngle - this.angle;
@@ -1012,8 +1282,7 @@ class HomingMissile {
     this.y += Math.sin(this.angle) * this.speed;
 
     // Thruster smoke and fire trail
-    const lvl = this.level;
-    if (Math.random() < (0.5 + lvl * 0.1)) {
+    if (Math.random() < (0.5 + Math.min(10, lvl) * 0.1)) {
       // Fire spark
       fx.particles.push(new Particle(
         this.x - Math.cos(this.angle) * 10,
@@ -1021,7 +1290,7 @@ class HomingMissile {
         -Math.cos(this.angle) * 1.5 + (Math.random() - 0.5) * 0.8,
         -Math.sin(this.angle) * 1.5 + (Math.random() - 0.5) * 0.8,
         lvl >= 4 ? '#38bdf8' : (Math.random() < 0.5 ? '#f59e0b' : '#ef4444'),
-        1.8 + lvl * 0.4, 10 + lvl * 2, 1
+        1.8 + Math.min(10, lvl) * 0.4, 10 + Math.min(10, lvl) * 2, 1
       ));
       // Smoke
       fx.particles.push(new Particle(
@@ -1029,31 +1298,35 @@ class HomingMissile {
         this.y - Math.sin(this.angle) * 12,
         (Math.random() - 0.5) * 0.5,
         (Math.random() - 0.5) * 0.5,
-        '#64748b', 2.5 + lvl * 0.5, 16 + lvl * 2, 1, 'smoke'
+        '#64748b', 2.5 + Math.min(10, lvl) * 0.5, 16 + Math.min(10, lvl) * 2, 1, 'smoke'
       ));
     }
 
     // Hit test
     for (let e of enemies) {
       if (e.isDead) continue;
-      if (Math.hypot(e.x - this.x, e.y - this.y) <= e.size + 8 + lvl * 1.5) {
+      if (Math.hypot(e.x - this.x, e.y - this.y) <= e.size + 8 + Math.min(10, lvl) * 1.5) {
         this.isDead = true;
-        const explosionCount = 20 + lvl * 8;
-        const explosionIntensity = 1.2 + lvl * 0.3;
+        const explosionCount = 20 + Math.min(10, lvl) * 8;
+        const explosionIntensity = 1.2 + Math.min(10, lvl) * 0.3;
         fx.createExplosion(this.x, this.y, '#ffbe0b', explosionCount, explosionIntensity);
-        sounds.playExplosion(1 + lvl * 0.2);
+        sounds.playExplosion(1 + Math.min(10, lvl) * 0.2);
 
         // High level multiple shockwaves
         if (lvl >= 3) {
-          fx.shockwaves.push(new Shockwave(this.x, this.y, this.splashRadius * 1.15, '#f59e0b', 22 + lvl * 3));
+          fx.shockwaves.push(new Shockwave(this.x, this.y, this.splashRadius * 1.15, '#f59e0b', 22 + Math.min(10, lvl) * 3));
         }
 
         for (let target of enemies) {
           if (target.isDead) continue;
           const d = Math.hypot(target.x - this.x, target.y - this.y);
           if (d <= this.splashRadius) {
-            target.takeDamage(this.damage, fx);
-            fx.addDamageText(target.x, target.y, this.damage, lvl >= 4);
+            // Missile Lv.5+: Vulnerability debuff
+            if (lvl >= 5) {
+              target.applyVuln(210, 1.35);
+            }
+            const appliedDmg = target.takeDamage(this.damage, fx, 'missile');
+            fx.addDamageText(target.x, target.y, appliedDmg, lvl >= 4);
           }
         }
         break;
@@ -1107,14 +1380,33 @@ class EMPBurst {
       if (e.isDead) continue;
       const d = Math.hypot(e.x - this.x, e.y - this.y);
       if (d <= this.radius) {
-        e.takeDamage(this.damage, fx);
-        e.applySlow(this.slowDuration, 0.35);
+        // EMP Lv.3+: Armor shatter (Vulnerability)
+        if (this.level >= 3) {
+          e.applyVuln(180, 1.35);
+        }
+        // EMP Lv.7+: Pulse Stun
+        if (this.level >= 7) {
+          e.applyStun(48);
+        }
+
+        const slowFactor = this.level >= 5 ? 0.2 : 0.35;
+        e.applySlow(this.slowDuration, slowFactor);
+        const appliedDmg = e.takeDamage(this.damage, fx, 'emp');
+
         if (fx) {
-          fx.createHitSpark(e.x, e.y, '#3b82f6', 4 + this.level * 2);
-          fx.addDamageText(e.x, e.y, this.damage, this.level >= 4);
+          fx.createHitSpark(e.x, e.y, '#3b82f6', 4 + Math.min(10, this.level) * 2);
+          fx.addDamageText(e.x, e.y, appliedDmg, this.level >= 4);
         }
       }
     }
+
+    // EMP Lv.10+: Screen-wide electromagnetic storm
+    if (this.level >= 10) {
+      for (let all of enemies) {
+        if (!all.isDead) all.applySlow(120, 0.6);
+      }
+    }
+
     this.isDead = true;
   }
 
@@ -1135,17 +1427,29 @@ class TeslaChain {
         if (d < nearestDist) { nearestDist = d; nearest = e; }
       }
       if (!nearest) break;
-      const chainDamage = damage * ([1, 0.8, 0.65, 0.5, 0.4][i] || 0.35);
-      nearest.takeDamage(chainDamage, fx);
+
+      // Tesla Lv.7+: Chain amplification instead of decay
+      let decayFactor = [1, 0.8, 0.65, 0.5, 0.4][i] || 0.35;
+      if (level >= 7) {
+        decayFactor = Math.pow(1.15, i);
+      }
+      const chainDamage = damage * decayFactor;
+
+      // Tesla Lv.5+: Electro-shock stun
+      if (level >= 5) {
+        nearest.applyStun(30);
+      }
+
+      const appliedDmg = nearest.takeDamage(chainDamage, fx, 'tesla');
       if (fx) {
         const sparkColor = level >= 4 ? '#f0abfc' : '#a78bfa';
-        fx.createHitSpark(nearest.x, nearest.y, sparkColor, 6 + level * 2);
-        fx.addDamageText(nearest.x, nearest.y, chainDamage, level >= 4);
+        fx.createHitSpark(nearest.x, nearest.y, sparkColor, 6 + Math.min(10, level) * 2);
+        fx.addDamageText(nearest.x, nearest.y, appliedDmg, level >= 4);
         if (!fx.lightningArcs) fx.lightningArcs = [];
         fx.lightningArcs.push({
           x1: lastX, y1: lastY,
           x2: nearest.x, y2: nearest.y,
-          life: 8 + level * 2,
+          life: 8 + Math.min(10, level) * 2,
           level: level,
           color: level >= 4 ? '#c084fc' : '#a78bfa'
         });
@@ -1166,12 +1470,12 @@ class FlameProjectile {
     this.burnDuration = burnDuration;
     this.level = level;
     this.isDead = false;
-    this.life = 18 + Math.floor(Math.random() * 8) + level * 2;
+    this.life = 18 + Math.floor(Math.random() * 8) + Math.min(10, level) * 2;
 
     const dx = targetX - x;
     const dy = targetY - y;
     const dist = Math.hypot(dx, dy);
-    const speed = 5 + Math.random() * 2 + level * 0.4;
+    const speed = 5 + Math.random() * 2 + Math.min(10, level) * 0.4;
     this.vx = (dx / dist) * speed;
     this.vy = (dy / dist) * speed;
   }
@@ -1187,20 +1491,34 @@ class FlameProjectile {
       return;
     }
 
-    const hitRadius = 7 + this.level * 1.5;
+    const hitRadius = 7 + Math.min(10, this.level) * 1.5;
     for (let enemy of enemies) {
       if (enemy.isDead) continue;
       const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
       if (dist <= enemy.size + hitRadius) {
         this.isDead = true;
-        enemy.takeDamage(this.damage, fx);
+        let finalFlameDamage = this.damage;
+
+        // Flamethrower Lv.5+: Thermodynamic reaction (2.2x to slowed/vuln enemies)
+        if (this.level >= 5 && (enemy.slowTimer > 0 || enemy.vulnTimer > 0)) {
+          finalFlameDamage *= 2.2;
+          if (fx) fx.addDamageText(enemy.x, enemy.y - 14, '열역학 작열!', true);
+        }
+
+        const appliedDmg = enemy.takeDamage(finalFlameDamage, fx, 'flamethrower');
         // Apply burn with level scaling
-        enemy.burnTimer = this.burnDuration + this.level * 15;
-        enemy.burnDamage = 3 + Math.floor(this.level * 1.2);
+        enemy.burnTimer = this.burnDuration + Math.min(10, this.level) * 15;
+        let baseBurnDmg = 3 + Math.floor(Math.min(10, this.level) * 1.2);
+        // Flamethrower Lv.7+: Meltdown (2% max HP burn)
+        if (this.level >= 7 && enemy.maxHp) {
+          baseBurnDmg += Math.round(enemy.maxHp * 0.02);
+        }
+        enemy.burnDamage = baseBurnDmg;
+
         if (fx) {
           const flameColor = this.level >= 4 ? '#38bdf8' : '#f97316';
-          fx.createHitSpark(this.x, this.y, flameColor, 4 + this.level * 2);
-          fx.addDamageText(enemy.x, enemy.y, this.damage, this.level >= 4);
+          fx.createHitSpark(this.x, this.y, flameColor, 4 + Math.min(10, this.level) * 2);
+          fx.addDamageText(enemy.x, enemy.y, appliedDmg, this.level >= 4);
         }
         break;
       }
@@ -1223,10 +1541,10 @@ class FlameProjectile {
     }
 
     ctx.fillStyle = color;
-    ctx.shadowBlur = 8 + lvl * 3;
+    ctx.shadowBlur = 8 + Math.min(10, lvl) * 3;
     ctx.shadowColor = color;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, 3 + lvl * 1 + Math.random() * 2, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, 3 + Math.min(10, lvl) * 1 + Math.random() * 2, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -1248,23 +1566,32 @@ class FreezerBurst {
       if (e.isDead) continue;
       const d = Math.hypot(e.x - this.x, e.y - this.y);
       if (d <= this.radius) {
-        e.takeDamage(this.damage, fx);
+        const appliedDmg = e.takeDamage(this.damage, fx, 'freezer');
         // Apply freeze for small/medium enemies; for large / boss-class enemies apply heavy slow instead
         if (e.type === 'boss' || e.type === 'destroyer' || e.type === 'cruiser') {
-          // Partial slow (not full freeze) and reduced duration to prevent permanent lockdown on big targets
           e.slowTimer = Math.max(30, Math.floor(this.freezeDuration * 0.45));
           e.slowFactor = 0.25; // 75% slow
         } else {
-          // Full freeze for normal enemies
           e.slowTimer = this.freezeDuration;
           e.slowFactor = 0; // fully halted
         }
         if (fx) {
-          fx.createHitSpark(e.x, e.y, '#67e8f9', 6 + this.level * 3);
-          fx.addDamageText(e.x, e.y, this.damage, this.level >= 4);
+          fx.createHitSpark(e.x, e.y, '#67e8f9', 6 + Math.min(10, this.level) * 3);
+          fx.addDamageText(e.x, e.y, appliedDmg, this.level >= 4);
         }
       }
     }
+
+    // Freezer Lv.10+: Screen-wide Ice Age (freeze all enemies for 1.5s)
+    if (this.level >= 10) {
+      for (let all of enemies) {
+        if (!all.isDead) {
+          all.applyStun(90);
+          if (fx) fx.createHitSpark(all.x, all.y, '#67e8f9', 5);
+        }
+      }
+    }
+
     this.isDead = true;
   }
 

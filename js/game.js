@@ -1,5 +1,44 @@
 // Main Game Engine
 
+const DIFFICULTY_CONFIGS = {
+  EASY: {
+    name: '쉬움',
+    label: '도전자: 쉬움 🛡️',
+    color: '#38bdf8',
+    startGold: 350,
+    upgradeCostMult: 1.0,
+    stageRewardMult: 1.0,
+    goldBountyMult: 1.0,
+    slotCostMult: 1.0,
+    enemyHpMult: 1.0,
+    summary: '자원 350G | 강화비용 1.0x | 클리어보상 100%'
+  },
+  NORMAL: {
+    name: '보통',
+    label: '도전자: 보통 ⚔️',
+    color: '#ffbe0b',
+    startGold: 240,
+    upgradeCostMult: 1.35,
+    stageRewardMult: 0.70,
+    goldBountyMult: 0.85,
+    slotCostMult: 1.25,
+    enemyHpMult: 1.15,
+    summary: '자원 240G | 강화비용 1.35x | 클리어보상 70%'
+  },
+  HARD: {
+    name: '어려움',
+    label: '도전자: 어려움 💀',
+    color: '#ef4444',
+    startGold: 160,
+    upgradeCostMult: 1.75,
+    stageRewardMult: 0.50,
+    goldBountyMult: 0.70,
+    slotCostMult: 1.60,
+    enemyHpMult: 1.30,
+    summary: '자원 160G | 강화비용 1.75x | 클리어보상 50%'
+  }
+};
+
 class GalaxyDefenseGame {
   constructor() {
     this.canvas = document.getElementById('gameCanvas');
@@ -14,6 +53,9 @@ class GalaxyDefenseGame {
 
     // Game state
     this.gameMode = null; // 'ADMIN' or 'CHALLENGER'
+    this.selectedDifficulty = 'NORMAL';
+    this.difficultySettings = DIFFICULTY_CONFIGS.NORMAL;
+    this.bossKills = 0;
     this.state = 'MENU'; // 'MENU', 'PLAYING', 'PAUSED', 'GAMEOVER'
     this.gameSpeed = 1;
 
@@ -39,6 +81,12 @@ class GalaxyDefenseGame {
     // Preview state used to show placement ranges before building
     this.preview = { active: false, multi: false, x: 0, y: 0, range: 0, slotId: null };
     this.turretInfoFor = null; // DOM card currently showing info for
+
+    // Slot purchase costs and global research buffs
+    this.slotPurchaseCosts = [800, 1200, 1800, 2600, 3500];
+    this.selectedSlotForPurchase = null;
+    this.globalBuffs = { damage: 0, cooldown: 0, range: 0, gold: 0, crit: false };
+    if (typeof window !== 'undefined') window.game = this;
 
     this.setupHardpoints();
     this.setupEventListeners();
@@ -176,7 +224,7 @@ class GalaxyDefenseGame {
     if (!this.selectedTurretType) return this.clearPreview();
     let closest = null; let minD = 99999; let idx = null;
     for (let hp of this.hardpoints) {
-      if (hp.turret) continue; // only show for empty slots
+      if (!hp.unlocked || hp.turret) continue; // only show for unlocked and empty slots
       const hpX = this.base.x + hp.relX;
       const hpY = this.base.y + hp.relY;
       const d = Math.hypot(x - hpX, y - hpY);
@@ -201,7 +249,7 @@ class GalaxyDefenseGame {
     if (!this.selectedTurretType) return;
     this.preview.multi = true;
     this.preview.active = true;
-    this.preview.list = this.hardpoints.filter(hp => !hp.turret).map(hp => ({
+    this.preview.list = this.hardpoints.filter(hp => hp.unlocked && !hp.turret).map(hp => ({
       x: this.base.x + hp.relX,
       y: this.base.y + hp.relY,
       range: (TURRET_TYPES[this.selectedTurretType] || {range:0}).range || 0
@@ -217,12 +265,29 @@ class GalaxyDefenseGame {
 
   setupHardpoints() {
     const span = this.base.width * 0.42;
+
+    // Preserve unlocked state during resize
+    const prevUnlocked = {};
+    if (this.hardpoints && this.hardpoints.length > 0) {
+      for (let hp of this.hardpoints) {
+        prevUnlocked[hp.id] = hp.unlocked;
+      }
+    }
+
+    // 10 Turret Slots: All located strictly within the bottom base defense baseline (2-tier zigzag)
     this.hardpoints = [
-      { id: 0, relX: -span, relY: -20, radius: 22, turret: null },
-      { id: 1, relX: -span * 0.5, relY: -38, radius: 22, turret: null },
-      { id: 2, relX: 0, relY: -48, radius: 22, turret: null },
-      { id: 3, relX: span * 0.5, relY: -38, radius: 22, turret: null },
-      { id: 4, relX: span, relY: -20, radius: 22, turret: null }
+      // Primary 5 Frontline Battery Slots (Default Unlocked)
+      { id: 0, relX: -span,        relY: -20, radius: 22, turret: null, unlocked: prevUnlocked[0] ?? true },
+      { id: 1, relX: -span * 0.5,  relY: -38, radius: 22, turret: null, unlocked: prevUnlocked[1] ?? true },
+      { id: 2, relX: 0,            relY: -48, radius: 22, turret: null, unlocked: prevUnlocked[2] ?? true },
+      { id: 3, relX: span * 0.5,   relY: -38, radius: 22, turret: null, unlocked: prevUnlocked[3] ?? true },
+      { id: 4, relX: span,         relY: -20, radius: 22, turret: null, unlocked: prevUnlocked[4] ?? true },
+      // Secondary 5 Expandable Wing & Citadel Deck Slots (Purchasable with gold)
+      { id: 5, relX: -span * 1.25, relY: -8,  radius: 22, turret: null, unlocked: prevUnlocked[5] ?? false, cost: this.slotPurchaseCosts[0] },
+      { id: 6, relX: span * 1.25,  relY: -8,  radius: 22, turret: null, unlocked: prevUnlocked[6] ?? false, cost: this.slotPurchaseCosts[1] },
+      { id: 7, relX: -span * 0.28, relY: -22, radius: 22, turret: null, unlocked: prevUnlocked[7] ?? false, cost: this.slotPurchaseCosts[2] },
+      { id: 8, relX: span * 0.28,  relY: -22, radius: 22, turret: null, unlocked: prevUnlocked[8] ?? false, cost: this.slotPurchaseCosts[3] },
+      { id: 9, relX: 0,            relY: -6,  radius: 22, turret: null, unlocked: prevUnlocked[9] ?? false, cost: this.slotPurchaseCosts[4] }
     ];
 
     // Re-link existing turrets if resizing
@@ -236,10 +301,11 @@ class GalaxyDefenseGame {
     }
   }
 
-  startGame(mode) {
+  startGame(mode, difficultyKey = 'NORMAL') {
     sounds.init();
     this.gameMode = mode;
     this.state = 'PLAYING';
+    this.bossKills = 0;
     document.getElementById('mode-modal').style.display = 'none';
     const pauseModal = document.getElementById('pause-modal');
     if (pauseModal) pauseModal.style.display = 'none';
@@ -247,26 +313,57 @@ class GalaxyDefenseGame {
     if (pauseBtn) pauseBtn.textContent = '⏸️ 일시정지';
 
     const modeBadge = document.getElementById('stat-mode-badge');
+    const adminBtn = document.getElementById('btn-admin-toggle');
     const adminPanel = document.getElementById('admin-panel');
+    const baseStatus = document.getElementById('top-base-status');
+    const baseBtn = document.getElementById('btn-base-toggle');
+
+    if (baseStatus) baseStatus.classList.remove('open');
+    if (baseBtn) baseBtn.classList.remove('active');
 
     if (mode === 'ADMIN') {
+      this.difficulty = 'EASY';
+      this.difficultySettings = DIFFICULTY_CONFIGS.EASY;
       modeBadge.textContent = '관리자 모드 (ADMIN)';
       modeBadge.style.borderColor = '#b537f2';
       modeBadge.style.color = '#f0abfc';
       this.gold = 999999;
-      adminPanel.classList.add('active');
+      if (adminBtn) {
+        adminBtn.style.display = 'inline-flex';
+        adminBtn.classList.remove('active');
+      }
+      if (adminPanel) adminPanel.classList.remove('active');
     } else {
-      modeBadge.textContent = '도전자 모드 (CHALLENGER)';
-      modeBadge.style.borderColor = '#00f0ff';
-      modeBadge.style.color = '#38bdf8';
-      this.gold = 350;
-      adminPanel.classList.remove('active');
+      this.difficulty = (difficultyKey in DIFFICULTY_CONFIGS) ? difficultyKey : 'NORMAL';
+      this.difficultySettings = DIFFICULTY_CONFIGS[this.difficulty];
+      modeBadge.textContent = this.difficultySettings.label;
+      modeBadge.style.borderColor = this.difficultySettings.color;
+      modeBadge.style.color = this.difficultySettings.color;
+      this.gold = this.difficultySettings.startGold;
+      if (adminBtn) {
+        adminBtn.style.display = 'none';
+        adminBtn.classList.remove('active');
+      }
+      if (adminPanel) adminPanel.classList.remove('active');
     }
+
+    // Recalculate slot purchase costs with difficulty multiplier
+    const baseCosts = [800, 1200, 1800, 2600, 3500];
+    const slotMult = this.difficultySettings?.slotCostMult || 1.0;
+    this.slotPurchaseCosts = baseCosts.map(c => Math.round(c * slotMult));
 
     this.wave = 1;
     this.score = 0;
     this.turrets = [];
-    for (let hp of this.hardpoints) hp.turret = null;
+    this.globalBuffs = { damage: 0, cooldown: 0, range: 0, gold: 0, crit: false };
+    this.setupHardpoints();
+    for (let hp of this.hardpoints) {
+      hp.turret = null;
+      hp.unlocked = (mode === 'ADMIN' ? true : hp.id < 5);
+      if (hp.id >= 5) {
+        hp.cost = this.slotPurchaseCosts[hp.id - 5];
+      }
+    }
     this.enemies = [];
     this.projectiles = [];
     this.fx.clear();
@@ -409,10 +506,6 @@ class GalaxyDefenseGame {
       this.fx.addNotification(turret.x, turret.y - 40, '업그레이드 골드 부족!', '#ef4444');
       return;
     }
-    if (turret.level >= 10) {
-      this.fx.addNotification(turret.x, turret.y - 40, '최고 레벨 (Lv.10 MAX) 달성!', '#ffbe0b');
-      return;
-    }
 
     if (this.gameMode !== 'ADMIN') {
       this.gold -= turret.upgradeCost;
@@ -422,21 +515,25 @@ class GalaxyDefenseGame {
     // Immediate upgrade spark
     this.fx.createHitSpark(turret.x, turret.y, turret.color, 16);
 
-    // Level-based celebratory effects to emphasize impact
-    if (turret.level >= 5 && turret.level < 10) {
-      // Major mid-tier upgrade: bigger explosion + shockwave + punchy sound
+    // Celebratory effects based on normal vs transcendence
+    if (turret.level > 10) {
+      // Transcendence (초월 강화): Huge impact, orbital cue, crimson shockwave
+      this.fx.createExplosion(turret.x, turret.y - 6, '#f43f5e', 45, 2.5);
+      this.fx.shockwaves.push(new Shockwave(turret.x, turret.y, 90, '#f43f5e', 40));
+      try { sounds.playOrbitalStrike(); } catch (e) { }
+      this.fx.addNotification(this.canvas.width / 2, 180, `${turret.name} 초월 강화 돌파! (EX-Lv.${turret.level})`, '#f43f5e');
+    } else if (turret.level === 10) {
+      // Ultimate tier Lv.10
+      this.fx.createExplosion(turret.x, turret.y - 6, turret.color, 56, 3.0);
+      this.fx.shockwaves.push(new Shockwave(turret.x, turret.y, 120, turret.color, 48));
+      try { sounds.playOrbitalStrike(); } catch (e) { }
+      this.fx.addNotification(this.canvas.width / 2, 180, `${turret.name} 궁극 각성 완료! (Lv.10)`, '#f0abfc');
+    } else if (turret.level >= 5) {
       this.fx.createExplosion(turret.x, turret.y - 6, turret.color, 22 + turret.level * 2, 1.4 + turret.level * 0.12);
       this.fx.shockwaves.push(new Shockwave(turret.x, turret.y, 48 + turret.level * 6, turret.color, 26 + turret.level * 2));
       try { sounds.playExplosion(1 + turret.level * 0.08); } catch (e) { }
       this.fx.addNotification(turret.x, turret.y - 60, `Lv.${turret.level} 대규모 강화!`, '#ffbe0b');
-    } else if (turret.level >= 10) {
-      // Ultimate tier: huge FX, orbital-like audio cue, global notification
-      this.fx.createExplosion(turret.x, turret.y - 6, turret.color, 56, 3.0);
-      this.fx.shockwaves.push(new Shockwave(turret.x, turret.y, 120, turret.color, 48));
-      try { sounds.playOrbitalStrike(); } catch (e) { }
-      this.fx.addNotification(this.canvas.width / 2, 180, `${turret.name} 궁극 강화 완료! (Lv.10)`, '#f0abfc');
     } else {
-      // Minor upgrade: pleasant ping
       try { sounds.playClick(); } catch (e) { }
       this.fx.addNotification(turret.x, turret.y - 40, `Lv.${turret.level} 강화 완료!`, '#10b981');
     }
@@ -467,6 +564,9 @@ class GalaxyDefenseGame {
   }
 
   adminSkipWave() {
+    if (this.wave % 5 === 0) {
+      this.bossKills++;
+    }
     this.enemies = [];
     this.enemiesToSpawn = [];
     this.wave++;
@@ -509,11 +609,37 @@ class GalaxyDefenseGame {
     const hpVal = document.getElementById('console-hp-val');
     const shieldBar = document.getElementById('console-shield-bar');
     const shieldVal = document.getElementById('console-shield-val');
+    const hpPctBadge = document.getElementById('stat-base-hp-pct');
+    const baseBtn = document.getElementById('btn-base-toggle');
 
     if (hpBar && this.base) {
       const hpPct = Math.max(0, Math.min(100, (this.base.hp / this.base.maxHp) * 100));
       hpBar.style.width = `${hpPct}%`;
       hpVal.textContent = `${Math.round(this.base.hp)}/${this.base.maxHp}`;
+
+      if (hpPctBadge) {
+        const roundedPct = Math.round(hpPct);
+        hpPctBadge.textContent = `${roundedPct}%`;
+        if (roundedPct > 60) {
+          hpPctBadge.style.color = '#10b981'; // emerald green
+        } else if (roundedPct > 30) {
+          hpPctBadge.style.color = '#ffbe0b'; // amber yellow
+        } else {
+          hpPctBadge.style.color = '#ef4444'; // danger red
+        }
+      }
+
+      // Detect recent damage and trigger flash pulse on the base toggle button
+      if (this.lastBaseHp !== undefined && this.base.hp < this.lastBaseHp) {
+        if (baseBtn) {
+          baseBtn.classList.add('damage-flash');
+          clearTimeout(this.baseDamageFlashTimeout);
+          this.baseDamageFlashTimeout = setTimeout(() => {
+            baseBtn.classList.remove('damage-flash');
+          }, 600);
+        }
+      }
+      this.lastBaseHp = this.base.hp;
     }
     if (shieldBar && this.base) {
       const sPct = Math.max(0, Math.min(100, (this.base.shield / this.base.maxShield) * 100));
@@ -531,18 +657,39 @@ class GalaxyDefenseGame {
     const tX = turret.x;
     const tY = turret.y - 120;
 
-    popup.style.left = `${Math.max(10, Math.min(container.width - 190, tX - 90))}px`;
+    popup.style.left = `${Math.max(10, Math.min(container.width - 200, tX - 95))}px`;
     popup.style.top = `${Math.max(70, tY)}px`;
     popup.style.display = 'block';
 
-    document.getElementById('popup-title').textContent = `${turret.name} (Lv.${turret.level})`;
+    const isTranscend = turret.level > 10;
+    const levelLabel = isTranscend ? `EX-Lv.${turret.level}` : `Lv.${turret.level}`;
+    document.getElementById('popup-title').textContent = `${turret.name} (${levelLabel})`;
     document.getElementById('popup-damage').textContent = `공격력: ${Math.round(turret.damage)}`;
     document.getElementById('popup-range').textContent = `사거리: ${Math.round(turret.range)}`;
 
+    // Show active and upcoming passives
+    const passiveElem = document.getElementById('popup-passive');
+    if (passiveElem) {
+      const passives = (typeof TURRET_PASSIVES !== 'undefined' && TURRET_PASSIVES[turret.type]) ? TURRET_PASSIVES[turret.type] : [];
+      let activePassive = passives.filter(p => turret.level >= p.level).pop();
+      let nextPassive = passives.find(p => turret.level < p.level);
+      let descText = '';
+      if (activePassive) {
+        descText += `⚡ 현재 특성: [${activePassive.name}]<br>`;
+      }
+      if (nextPassive) {
+        descText += `🔒 Lv.${nextPassive.level} 해금: ${nextPassive.name}`;
+      } else if (isTranscend) {
+        descText += `✨ 초월 특성 활성화 중`;
+      }
+      passiveElem.innerHTML = descText;
+      passiveElem.style.display = descText ? 'block' : 'none';
+    }
+
     const upBtn = document.getElementById('popup-btn-upgrade');
     if (turret.level >= 10) {
-      upBtn.textContent = '최고 레벨 (MAX)';
-      upBtn.disabled = true;
+      upBtn.textContent = this.gameMode === 'ADMIN' ? '초월 무료강화' : `초월 강화 (${turret.upgradeCost.toLocaleString()}G)`;
+      upBtn.disabled = false;
     } else {
       upBtn.textContent = this.gameMode === 'ADMIN' ? '무료 강화' : `강화 (${turret.upgradeCost.toLocaleString()}G)`;
       upBtn.disabled = false;
@@ -551,7 +698,233 @@ class GalaxyDefenseGame {
 
   closePopup() {
     this.selectedTurretInstance = null;
-    document.getElementById('turret-popup').style.display = 'none';
+    const popup = document.getElementById('turret-popup');
+    if (popup) popup.style.display = 'none';
+  }
+
+  canUnlockSlot(slot) {
+    if (!slot) return { allowed: false, requiredKills: 0, currentKills: this.bossKills };
+    if (slot.id < 5) return { allowed: true, requiredKills: 0, currentKills: this.bossKills };
+    if (this.gameMode === 'ADMIN') return { allowed: true, requiredKills: 0, currentKills: this.bossKills };
+    const requiredKills = slot.id - 4; // Slot 5 -> 1 boss, Slot 6 -> 2 bosses, etc.
+    return {
+      allowed: this.bossKills >= requiredKills,
+      requiredKills,
+      currentKills: this.bossKills
+    };
+  }
+
+  openSlotPopup(slot) {
+    this.selectedSlotForPurchase = slot;
+    const popup = document.getElementById('slot-popup');
+    if (!popup) return;
+    const viewport = document.getElementById('canvas-viewport') || this.canvas.parentElement;
+    const container = viewport.getBoundingClientRect();
+
+    const sX = this.base.x + slot.relX;
+    const sY = this.base.y + slot.relY - 120;
+
+    popup.style.left = `${Math.max(10, Math.min(container.width - 210, sX - 100))}px`;
+    popup.style.top = `${Math.max(70, sY)}px`;
+    popup.style.display = 'block';
+
+    const slotNum = slot.id + 1;
+    const perm = this.canUnlockSlot(slot);
+    const titleEl = document.getElementById('slot-popup-title');
+    const descEl = document.getElementById('slot-popup-desc');
+    const reqEl = document.getElementById('slot-popup-req');
+    const costEl = document.getElementById('slot-popup-cost');
+    const buyBtn = document.getElementById('slot-btn-buy');
+
+    if (!perm.allowed) {
+      if (titleEl) titleEl.textContent = `🔒 ${slotNum}번 슬롯 (보스 잠금)`;
+      if (descEl) descEl.textContent = '새로운 포탑을 배치할 수 있는 추가 슬롯입니다.';
+      if (reqEl) {
+        reqEl.style.display = 'block';
+        reqEl.textContent = `⚠️ 스테이지 보스를 ${perm.requiredKills}회 처치해야 해금 권한이 부여됩니다. (현재 처치: ${perm.currentKills}회)`;
+      }
+      if (costEl) costEl.textContent = `해금 비용: ${(slot.cost || 800).toLocaleString()} G`;
+      if (buyBtn) {
+        buyBtn.disabled = true;
+        buyBtn.classList.add('disabled');
+        buyBtn.textContent = '보스 처치 필요';
+      }
+    } else {
+      if (titleEl) titleEl.textContent = `🔓 ${slotNum}번 포탑 슬롯 확장`;
+      if (descEl) descEl.textContent = '새로운 포탑을 배치할 수 있는 슬롯을 잠금 해제합니다.';
+      if (reqEl) reqEl.style.display = 'none';
+      if (costEl) costEl.textContent = this.gameMode === 'ADMIN' ? '비용: 무료 (관리자)' : `비용: ${(slot.cost || 800).toLocaleString()} G`;
+      if (buyBtn) {
+        buyBtn.disabled = false;
+        buyBtn.classList.remove('disabled');
+        buyBtn.textContent = '해금하기';
+      }
+    }
+  }
+
+  closeSlotPopup() {
+    this.selectedSlotForPurchase = null;
+    const popup = document.getElementById('slot-popup');
+    if (popup) popup.style.display = 'none';
+  }
+
+  purchaseSlot(slot) {
+    if (!slot || slot.unlocked) return;
+    const perm = this.canUnlockSlot(slot);
+    if (!perm.allowed) {
+      this.fx.addNotification(this.base.x + slot.relX, this.base.y + slot.relY - 30, `보스를 ${perm.requiredKills}회 처치해야 합니다!`, '#ef4444');
+      sounds.playClick();
+      return;
+    }
+    const cost = slot.cost || 800;
+    if (this.gameMode !== 'ADMIN' && this.gold < cost) {
+      this.fx.addNotification(this.base.x + slot.relX, this.base.y + slot.relY - 30, '골드가 부족합니다!', '#ef4444');
+      sounds.playClick();
+      return;
+    }
+
+    if (this.gameMode !== 'ADMIN') {
+      this.gold -= cost;
+    }
+    slot.unlocked = true;
+    sounds.playClick();
+    this.fx.createExplosion(this.base.x + slot.relX, this.base.y + slot.relY, '#ffbe0b', 24, 1.5);
+    this.fx.addNotification(this.base.x + slot.relX, this.base.y + slot.relY - 40, `슬롯 ${slot.id + 1} 잠금 해제!`, '#ffbe0b');
+    this.closeSlotPopup();
+    this.updateHUD();
+  }
+
+  unlockAllSlots() {
+    this.bossKills = 99;
+    for (let hp of this.hardpoints) {
+      hp.unlocked = true;
+    }
+    sounds.playClick();
+    this.fx.addNotification(this.canvas.width / 2, 200, '모든 포탑 슬롯 해금 완료!', '#10b981');
+    this.updateHUD();
+  }
+
+  showWaveRewardModal() {
+    const modal = document.getElementById('reward-modal');
+    const container = document.getElementById('reward-options-container');
+    if (!modal || !container) return;
+
+    // List of 6 research options
+    const researchPool = [
+      {
+        id: 'damage',
+        icon: '⚡',
+        title: '입자 가속 연구',
+        desc: '모든 포탑 공격력 +10% 영구 강화',
+        badge: `현재 누적: +${Math.round((this.globalBuffs.damage || 0) * 100)}%`,
+        apply: () => {
+          this.globalBuffs.damage = (this.globalBuffs.damage || 0) + 0.10;
+        }
+      },
+      {
+        id: 'cooldown',
+        icon: '🌀',
+        title: '시간 왜곡 캐패시터',
+        desc: '모든 포탑 재장전 쿨다운 -6% 단축',
+        badge: `현재 누적: -${Math.round((this.globalBuffs.cooldown || 0) * 100)}%`,
+        apply: () => {
+          this.globalBuffs.cooldown = Math.min(0.5, (this.globalBuffs.cooldown || 0) + 0.06);
+        }
+      },
+      {
+        id: 'range',
+        icon: '🛰️',
+        title: '타키온 센서 렌즈',
+        desc: '모든 포탑 사거리 +8% 확장',
+        badge: `현재 누적: +${Math.round((this.globalBuffs.range || 0) * 100)}%`,
+        apply: () => {
+          this.globalBuffs.range = (this.globalBuffs.range || 0) + 0.08;
+        }
+      },
+      {
+        id: 'gold',
+        icon: '💰',
+        title: '나노 물질 채굴기',
+        desc: '적 처치 시 골드 획득량 +15% 증액',
+        badge: `현재 누적: +${Math.round((this.globalBuffs.gold || 0) * 100)}%`,
+        apply: () => {
+          this.globalBuffs.gold = (this.globalBuffs.gold || 0) + 0.15;
+        }
+      },
+      {
+        id: 'shield',
+        icon: '🛡️',
+        title: '플라즈마 실드 증폭기',
+        desc: '기지 보호막 +150 및 재생속도 +25%',
+        badge: `현재 실드: ${this.base.maxShield}`,
+        apply: () => {
+          this.base.maxShield += 150;
+          this.base.shield = this.base.maxShield;
+          this.base.shieldRegen += 0.2;
+        }
+      },
+      {
+        id: 'crit',
+        icon: '💥',
+        title: '임계 융합 반응로',
+        desc: '모든 공격 시 12% 확률로 2배 치명타',
+        badge: this.globalBuffs.crit ? '활성화됨 (+공격력 5%)' : '미보유',
+        apply: () => {
+          this.globalBuffs.crit = true;
+          this.globalBuffs.damage = (this.globalBuffs.damage || 0) + 0.05;
+        }
+      }
+    ];
+
+    // Pick 3 random distinct options
+    const shuffled = [...researchPool].sort(() => Math.random() - 0.5);
+    const chosen = shuffled.slice(0, 3);
+
+    container.innerHTML = '';
+    for (let opt of chosen) {
+      const card = document.createElement('div');
+      card.className = 'reward-card';
+      card.innerHTML = `
+        <div class="reward-icon">${opt.icon}</div>
+        <div class="reward-body">
+          <div class="reward-title">${opt.title}</div>
+          <div class="reward-desc">${opt.desc}</div>
+        </div>
+        <div class="reward-badge">${opt.badge}</div>
+      `;
+      card.addEventListener('click', () => {
+        opt.apply();
+        // Re-apply stats to all active turrets
+        for (let t of this.turrets) t.applyStats();
+        sounds.playClick();
+        this.fx.addNotification(this.canvas.width / 2, 220, `[${opt.title}] 연구 완료!`, '#ffbe0b');
+        modal.style.display = 'none';
+        this.updateHUD();
+      });
+      container.appendChild(card);
+    }
+
+    modal.style.display = 'flex';
+  }
+
+  updatePauseButton(isPaused) {
+    const pauseBtn = document.getElementById('btn-pause-toggle');
+    if (!pauseBtn) return;
+    const icon = pauseBtn.querySelector('.btn-icon');
+    const text = pauseBtn.querySelector('.btn-text');
+    if (icon) icon.textContent = isPaused ? '▶' : '⏸️';
+    if (text) text.textContent = isPaused ? ' 계속하기' : ' 일시정지';
+    pauseBtn.title = isPaused ? '게임 재개' : '일시정지';
+  }
+
+  updateSoundButton(isMuted) {
+    const soundBtn = document.getElementById('btn-sound-toggle');
+    if (!soundBtn) return;
+    const icon = soundBtn.querySelector('.btn-icon');
+    const text = soundBtn.querySelector('.btn-text');
+    if (icon) icon.textContent = isMuted ? '🔇' : '🔊';
+    if (text) text.textContent = isMuted ? ' 사운드 OFF' : ' 사운드 ON';
+    soundBtn.title = isMuted ? '사운드 켜기' : '사운드 끄기';
   }
 
   pauseGame() {
@@ -559,8 +932,7 @@ class GalaxyDefenseGame {
     this.state = 'PAUSED';
     const pauseModal = document.getElementById('pause-modal');
     if (pauseModal) pauseModal.style.display = 'flex';
-    const pauseBtn = document.getElementById('btn-pause-toggle');
-    if (pauseBtn) pauseBtn.textContent = '▶ 계속하기';
+    this.updatePauseButton(true);
     sounds.suspend();
   }
 
@@ -569,8 +941,7 @@ class GalaxyDefenseGame {
     this.state = 'PLAYING';
     const pauseModal = document.getElementById('pause-modal');
     if (pauseModal) pauseModal.style.display = 'none';
-    const pauseBtn = document.getElementById('btn-pause-toggle');
-    if (pauseBtn) pauseBtn.textContent = '⏸️ 일시정지';
+    this.updatePauseButton(false);
     sounds.resume();
   }
 
@@ -738,30 +1109,69 @@ class GalaxyDefenseGame {
       }
 
       if (clickedSlot) {
-        if (clickedSlot.turret) {
+        if (!clickedSlot.unlocked) {
+          // Locked slot -> open slot purchase popup
+          this.closePopup();
+          this.openSlotPopup(clickedSlot);
+          this.clearPreview();
+        } else if (clickedSlot.turret) {
           // Open Upgrade/Sell popup
+          this.closeSlotPopup();
           this.openPopup(clickedSlot.turret);
           this.clearPreview();
         } else {
           // Build selected turret
+          this.closeSlotPopup();
           this.buildTurret(clickedSlot.id, this.selectedTurretType);
           this.closePopup();
           this.clearPreview();
         }
       } else {
         this.closePopup();
+        this.closeSlotPopup();
         this.clearPreview();
       }
     });
 
     // Popup action buttons
-    document.getElementById('popup-btn-upgrade').addEventListener('click', () => {
-      if (this.selectedTurretInstance) this.upgradeTurret(this.selectedTurretInstance);
-    });
+    const upgradeBtn = document.getElementById('popup-btn-upgrade');
+    if (upgradeBtn) {
+      upgradeBtn.addEventListener('click', () => {
+        if (this.selectedTurretInstance) this.upgradeTurret(this.selectedTurretInstance);
+      });
+    }
 
-    document.getElementById('popup-btn-sell').addEventListener('click', () => {
-      if (this.selectedTurretInstance) this.sellTurret(this.selectedTurretInstance);
-    });
+    const sellBtn = document.getElementById('popup-btn-sell');
+    if (sellBtn) {
+      sellBtn.addEventListener('click', () => {
+        if (this.selectedTurretInstance) this.sellTurret(this.selectedTurretInstance);
+      });
+    }
+
+    // Slot Purchase Popup buttons
+    const slotBuyBtn = document.getElementById('slot-btn-buy');
+    if (slotBuyBtn) {
+      slotBuyBtn.addEventListener('click', () => {
+        if (this.selectedSlotForPurchase) this.purchaseSlot(this.selectedSlotForPurchase);
+      });
+    }
+
+    const slotCancelBtn = document.getElementById('slot-btn-cancel');
+    if (slotCancelBtn) {
+      slotCancelBtn.addEventListener('click', () => {
+        this.closeSlotPopup();
+      });
+    }
+
+    // Wave Reward Skip button
+    const rewardSkipBtn = document.getElementById('btn-reward-skip');
+    if (rewardSkipBtn) {
+      rewardSkipBtn.addEventListener('click', () => {
+        const modal = document.getElementById('reward-modal');
+        if (modal) modal.style.display = 'none';
+        sounds.playClick();
+      });
+    }
 
     // Admin buttons
     document.getElementById('btn-admin-kill').addEventListener('click', () => this.adminKillAll());
@@ -775,6 +1185,11 @@ class GalaxyDefenseGame {
       sounds.playClick();
       this.fx.addNotification(this.canvas.width / 2, 250, '기지 내구도 100% 완전 수리 완료', '#10b981');
     });
+
+    const adminSlotsBtn = document.getElementById('btn-admin-slots');
+    if (adminSlotsBtn) {
+      adminSlotsBtn.addEventListener('click', () => this.unlockAllSlots());
+    }
 
     // Keybindings
     window.addEventListener('keydown', (e) => {
@@ -808,12 +1223,38 @@ class GalaxyDefenseGame {
       } else if (e.key === 'Escape') {
         this.skillManager.orbitalTargeting = false;
         this.closePopup();
+        const baseStatus = document.getElementById('top-base-status');
+        const baseBtn = document.getElementById('btn-base-toggle');
+        if (baseStatus) baseStatus.classList.remove('open');
+        if (baseBtn) baseBtn.classList.remove('active');
+        const adminPanel = document.getElementById('admin-panel');
+        const adminBtn = document.getElementById('btn-admin-toggle');
+        if (adminPanel) adminPanel.classList.remove('active');
+        if (adminBtn) adminBtn.classList.remove('active');
       }
+    });
+
+    // Difficulty Selection Pills
+    const diffPills = document.querySelectorAll('.diff-pill');
+    const diffSummaryEl = document.getElementById('diff-summary');
+    diffPills.forEach(pill => {
+      pill.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const diff = pill.getAttribute('data-diff');
+        if (diff && DIFFICULTY_CONFIGS[diff]) {
+          this.selectedDifficulty = diff;
+          diffPills.forEach(p => p.classList.toggle('active', p === pill));
+          if (diffSummaryEl) {
+            diffSummaryEl.textContent = DIFFICULTY_CONFIGS[diff].summary;
+          }
+          sounds.playClick();
+        }
+      });
     });
 
     // Mode Selection Buttons
     document.getElementById('btn-choose-challenger').addEventListener('click', () => {
-      this.startGame('CHALLENGER');
+      this.startGame('CHALLENGER', this.selectedDifficulty);
     });
 
     document.getElementById('btn-choose-admin').addEventListener('click', () => {
@@ -829,7 +1270,81 @@ class GalaxyDefenseGame {
     // Audio Mute Button
     document.getElementById('btn-sound-toggle').addEventListener('click', () => {
       const isMuted = sounds.toggleMute();
-      document.getElementById('btn-sound-toggle').textContent = isMuted ? '🔇 사운드 OFF' : '🔊 사운드 ON';
+      this.updateSoundButton(isMuted);
+    });
+
+    // Base Defense Status Toggle Button and Popover Panel
+    const baseBtn = document.getElementById('btn-base-toggle');
+    const baseStatus = document.getElementById('top-base-status');
+    const baseCloseBtn = document.getElementById('btn-base-status-close');
+
+    if (baseBtn && baseStatus) {
+      baseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sounds.playClick();
+        const isOpen = baseStatus.classList.contains('open');
+        if (isOpen) {
+          baseStatus.classList.remove('open');
+          baseBtn.classList.remove('active');
+        } else {
+          baseStatus.classList.add('open');
+          baseBtn.classList.add('active');
+          // Close admin panel if open
+          const adminPanel = document.getElementById('admin-panel');
+          const adminBtn = document.getElementById('btn-admin-toggle');
+          if (adminPanel) adminPanel.classList.remove('active');
+          if (adminBtn) adminBtn.classList.remove('active');
+        }
+      });
+    }
+
+    if (baseCloseBtn && baseStatus && baseBtn) {
+      baseCloseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sounds.playClick();
+        baseStatus.classList.remove('open');
+        baseBtn.classList.remove('active');
+      });
+    }
+
+    // Admin Cheat Panel Toggle Button and Close
+    const adminBtn = document.getElementById('btn-admin-toggle');
+    const adminPanel = document.getElementById('admin-panel');
+    const adminCloseBtn = document.getElementById('btn-admin-close');
+
+    if (adminBtn && adminPanel) {
+      adminBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sounds.playClick();
+        const isActive = adminPanel.classList.contains('active');
+        if (isActive) {
+          adminPanel.classList.remove('active');
+          adminBtn.classList.remove('active');
+        } else {
+          adminPanel.classList.add('active');
+          adminBtn.classList.add('active');
+          // Close base status if open
+          if (baseStatus) baseStatus.classList.remove('open');
+          if (baseBtn) baseBtn.classList.remove('active');
+        }
+      });
+    }
+
+    if (adminCloseBtn && adminPanel && adminBtn) {
+      adminCloseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sounds.playClick();
+        adminPanel.classList.remove('active');
+        adminBtn.classList.remove('active');
+      });
+    }
+
+    // Canvas click closes open popovers
+    this.canvas.addEventListener('click', () => {
+      if (baseStatus && baseStatus.classList.contains('open')) {
+        baseStatus.classList.remove('open');
+        if (baseBtn) baseBtn.classList.remove('active');
+      }
     });
   }
 
@@ -862,13 +1377,16 @@ class GalaxyDefenseGame {
     } else if (this.waveState === 'WAVE_ACTIVE') {
       // Check if all enemies defeated
       if (this.enemies.length === 0 && this.enemiesToSpawn.length === 0) {
-        const bonusGold = 130 + this.wave * 35;
+        const rewardMult = this.difficultySettings?.stageRewardMult || 1.0;
+        const bonusGold = Math.round((130 + this.wave * 35) * rewardMult * (1 + (this.globalBuffs.gold || 0)));
         this.gold += bonusGold;
         this.score += 250 * this.wave;
         this.fx.addNotification(this.canvas.width / 2, 220, `Wave ${this.wave} 클리어! 보너스 +${bonusGold}G 지급`, '#ffbe0b');
         this.wave++;
         this.updateHUD();
         this.startPrepareWave();
+        // Show wave research choices
+        this.showWaveRewardModal();
       }
     }
 
@@ -882,11 +1400,20 @@ class GalaxyDefenseGame {
       e.update(this.base, this.projectiles, this.fx);
       if (e.isDead && e.hp <= 0) {
         // Defeated enemy
-        this.fx.createExplosion(e.x, e.y, e.color, e.type === 'boss' ? 50 : 20, e.type === 'boss' ? 2.5 : 1);
-        sounds.playExplosion(e.type === 'boss' ? 1.6 : 0.9);
-        const bounty = e.bounty;
+        const isBoss = (e.type === 'boss');
+        this.fx.createExplosion(e.x, e.y, e.color, isBoss ? 50 : 20, isBoss ? 2.5 : 1);
+        sounds.playExplosion(isBoss ? 1.6 : 0.9);
+        const bounty = Math.round(e.bounty * (1 + (this.globalBuffs.gold || 0)));
         this.gold += bounty;
         this.score += bounty * 10;
+
+        if (isBoss) {
+          this.bossKills++;
+          const nextSlotNum = 5 + Math.min(5, this.bossKills);
+          sounds.playClick();
+          this.fx.addNotification(this.canvas.width / 2, 170, `👑 거대 보스 모선 격파! 포탑 슬롯 #${nextSlotNum} 해금 가능!`, '#ffbe0b');
+        }
+
         this.updateHUD();
       }
     }
@@ -914,6 +1441,13 @@ class GalaxyDefenseGame {
   gameOver() {
     this.state = 'GAMEOVER';
     sounds.playExplosion(2.0);
+    const finalDiffEl = document.getElementById('final-diff');
+    if (finalDiffEl) {
+      finalDiffEl.textContent = this.gameMode === 'ADMIN' ? '관리자' : (this.difficultySettings?.name || '보통');
+      finalDiffEl.style.color = this.gameMode === 'ADMIN' ? '#f0abfc' : (this.difficultySettings?.color || '#ffbe0b');
+    }
+    const finalBossEl = document.getElementById('final-boss');
+    if (finalBossEl) finalBossEl.textContent = `${this.bossKills}회`;
     document.getElementById('final-wave').textContent = this.wave;
     document.getElementById('final-score').textContent = this.score.toLocaleString();
     document.getElementById('gameover-modal').style.display = 'flex';
@@ -930,23 +1464,23 @@ class GalaxyDefenseGame {
 
     // 3. Structural mounting pylons connecting citadel to elevated hardpoints
     this.ctx.save();
-    this.ctx.strokeStyle = '#1e293b';
     this.ctx.lineWidth = 10;
     this.ctx.lineCap = 'round';
     for (let hp of this.hardpoints) {
       const hpX = this.base.x + hp.relX;
       const hpY = this.base.y + hp.relY;
+      this.ctx.strokeStyle = hp.unlocked ? '#1e293b' : 'rgba(30, 41, 59, 0.45)';
       this.ctx.beginPath();
       this.ctx.moveTo(hpX, this.base.y - 8);
       this.ctx.lineTo(hpX, hpY);
       this.ctx.stroke();
     }
-    // Cyan conduit lines inside pylons
-    this.ctx.strokeStyle = 'rgba(0, 240, 255, 0.6)';
+    // Conduit lines inside pylons
     this.ctx.lineWidth = 2;
     for (let hp of this.hardpoints) {
       const hpX = this.base.x + hp.relX;
       const hpY = this.base.y + hp.relY;
+      this.ctx.strokeStyle = hp.unlocked ? 'rgba(0, 240, 255, 0.6)' : 'rgba(255, 190, 11, 0.25)';
       this.ctx.beginPath();
       this.ctx.moveTo(hpX, this.base.y - 8);
       this.ctx.lineTo(hpX, hpY);
@@ -966,20 +1500,66 @@ class GalaxyDefenseGame {
       this.ctx.arc(hpX, hpY, hp.radius, 0, Math.PI * 2);
       this.ctx.fill();
 
-      this.ctx.strokeStyle = hp.turret ? 'rgba(0, 240, 255, 0.45)' : '#00f0ff';
-      this.ctx.lineWidth = hp.turret ? 1.5 : 2;
-      this.ctx.setLineDash(hp.turret ? [] : [4, 4]);
-      this.ctx.beginPath();
-      this.ctx.arc(hpX, hpY, hp.radius, 0, Math.PI * 2);
-      this.ctx.stroke();
+      if (!hp.unlocked) {
+        const perm = this.canUnlockSlot(hp);
+        if (perm.allowed) {
+          // Boss requirement satisfied: Ready for purchase with gold! Glowing gold dashed border
+          this.ctx.strokeStyle = '#ffbe0b';
+          this.ctx.lineWidth = 2.2;
+          this.ctx.setLineDash([4, 4]);
+          this.ctx.beginPath();
+          this.ctx.arc(hpX, hpY, hp.radius, 0, Math.PI * 2);
+          this.ctx.stroke();
 
-      if (!hp.turret) {
-        this.ctx.fillStyle = 'rgba(0, 240, 255, 0.12)';
-        this.ctx.fill();
-        this.ctx.fillStyle = '#38bdf8';
-        this.ctx.font = 'bold 11px "Segoe UI", sans-serif';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('+ 배치', hpX, hpY + 4);
+          this.ctx.fillStyle = 'rgba(255, 190, 11, 0.14)';
+          this.ctx.fill();
+
+          this.ctx.fillStyle = '#ffbe0b';
+          this.ctx.font = '11px "Segoe UI", sans-serif';
+          this.ctx.textAlign = 'center';
+          this.ctx.fillText('🔓', hpX, hpY - 2);
+
+          this.ctx.font = 'bold 9px "Segoe UI", sans-serif';
+          this.ctx.fillStyle = '#fde047';
+          this.ctx.fillText(`${hp.cost || 800}G`, hpX, hpY + 11);
+        } else {
+          // Boss requirement NOT satisfied: Crimson dashed border indicating boss lock
+          this.ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
+          this.ctx.lineWidth = 1.6;
+          this.ctx.setLineDash([2, 4]);
+          this.ctx.beginPath();
+          this.ctx.arc(hpX, hpY, hp.radius, 0, Math.PI * 2);
+          this.ctx.stroke();
+
+          this.ctx.fillStyle = 'rgba(239, 68, 68, 0.06)';
+          this.ctx.fill();
+
+          this.ctx.fillStyle = '#f87171';
+          this.ctx.font = '11px "Segoe UI", sans-serif';
+          this.ctx.textAlign = 'center';
+          this.ctx.fillText('🔒', hpX, hpY - 2);
+
+          this.ctx.font = 'bold 8px "Segoe UI", sans-serif';
+          this.ctx.fillStyle = '#fca5a5';
+          this.ctx.fillText(`보스 ${perm.requiredKills}회`, hpX, hpY + 11);
+        }
+      } else {
+        // Unlocked slot representation
+        this.ctx.strokeStyle = hp.turret ? 'rgba(0, 240, 255, 0.45)' : '#00f0ff';
+        this.ctx.lineWidth = hp.turret ? 1.5 : 2;
+        this.ctx.setLineDash(hp.turret ? [] : [4, 4]);
+        this.ctx.beginPath();
+        this.ctx.arc(hpX, hpY, hp.radius, 0, Math.PI * 2);
+        this.ctx.stroke();
+
+        if (!hp.turret) {
+          this.ctx.fillStyle = 'rgba(0, 240, 255, 0.12)';
+          this.ctx.fill();
+          this.ctx.fillStyle = '#38bdf8';
+          this.ctx.font = 'bold 11px "Segoe UI", sans-serif';
+          this.ctx.textAlign = 'center';
+          this.ctx.fillText('+ 배치', hpX, hpY + 4);
+        }
       }
       this.ctx.restore();
     }
