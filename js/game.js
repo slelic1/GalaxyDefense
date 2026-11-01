@@ -68,8 +68,11 @@ class GalaxyDefenseGame {
     this.spawnTimer = 0;
 
     // Base fortress (dynamically sized to viewport)
-    const baseW = Math.min(680, Math.max(380, this.canvas.width * 0.52));
-    this.base = new PlanetaryBase(this.canvas.width / 2, this.canvas.height - 25, baseW, 42);
+    const isMobile = this.canvas.width < 600;
+    const baseW = isMobile
+      ? Math.min(360, Math.max(260, this.canvas.width * 0.88))
+      : Math.min(680, Math.max(380, this.canvas.width * 0.52));
+    this.base = new PlanetaryBase(this.canvas.width / 2, this.canvas.height - 22, baseW, 42);
     this.hardpoints = [];
     this.turrets = [];
     this.enemies = [];
@@ -264,7 +267,10 @@ class GalaxyDefenseGame {
   }
 
   setupHardpoints() {
-    const span = this.base.width * 0.42;
+    // Dynamic span calculation ensuring all 10 slots fit comfortably within viewport bounds
+    const maxHalfSpan = (this.canvas.width / 2) - 34; // 34px safe margin from viewport edge (radius 22 + 12px)
+    const baseSpan = this.base.width * 0.40;
+    const span = Math.max(100, Math.min(maxHalfSpan, baseSpan));
 
     // Preserve unlocked state during resize
     const prevUnlocked = {};
@@ -274,19 +280,28 @@ class GalaxyDefenseGame {
       }
     }
 
-    // 10 Turret Slots: All located strictly within the bottom base defense baseline (2-tier zigzag)
+    // 10 Turret Slots:
+    // Row 1 (Elevated Arc, 5 default frontline slots): ID 0 ~ 4
+    // Row 2 (Citadel Deck, 5 expansion slots unlocked sequentially): ID 5 ~ 9
+    // Placed in an alternating/centralized pattern so earliest boss unlock slots (5 & 6) are prominent and 100% visible
     this.hardpoints = [
-      // Primary 5 Frontline Battery Slots (Default Unlocked)
-      { id: 0, relX: -span,        relY: -20, radius: 22, turret: null, unlocked: prevUnlocked[0] ?? true },
-      { id: 1, relX: -span * 0.5,  relY: -38, radius: 22, turret: null, unlocked: prevUnlocked[1] ?? true },
+      // Row 1: Primary 5 Frontline Battery Slots (Default Unlocked)
+      { id: 0, relX: -span * 0.90, relY: -24, radius: 22, turret: null, unlocked: prevUnlocked[0] ?? true },
+      { id: 1, relX: -span * 0.45, relY: -40, radius: 22, turret: null, unlocked: prevUnlocked[1] ?? true },
       { id: 2, relX: 0,            relY: -48, radius: 22, turret: null, unlocked: prevUnlocked[2] ?? true },
-      { id: 3, relX: span * 0.5,   relY: -38, radius: 22, turret: null, unlocked: prevUnlocked[3] ?? true },
-      { id: 4, relX: span,         relY: -20, radius: 22, turret: null, unlocked: prevUnlocked[4] ?? true },
-      // Secondary 5 Expandable Wing & Citadel Deck Slots (Purchasable with gold)
-      { id: 5, relX: -span * 1.25, relY: -8,  radius: 22, turret: null, unlocked: prevUnlocked[5] ?? false, cost: this.slotPurchaseCosts[0] },
-      { id: 6, relX: span * 1.25,  relY: -8,  radius: 22, turret: null, unlocked: prevUnlocked[6] ?? false, cost: this.slotPurchaseCosts[1] },
-      { id: 7, relX: -span * 0.28, relY: -22, radius: 22, turret: null, unlocked: prevUnlocked[7] ?? false, cost: this.slotPurchaseCosts[2] },
-      { id: 8, relX: span * 0.28,  relY: -22, radius: 22, turret: null, unlocked: prevUnlocked[8] ?? false, cost: this.slotPurchaseCosts[3] },
+      { id: 3, relX: span * 0.45,  relY: -40, radius: 22, turret: null, unlocked: prevUnlocked[3] ?? true },
+      { id: 4, relX: span * 0.90,  relY: -24, radius: 22, turret: null, unlocked: prevUnlocked[4] ?? true },
+
+      // Row 2: Secondary 5 Expandable Wing & Citadel Slots (Unlocked with Boss kills & gold)
+      // Slot 5 (Boss 1 Kill): Center-Left Citadel Deck (relX: -span * 0.58)
+      { id: 5, relX: -span * 0.58, relY: -10, radius: 22, turret: null, unlocked: prevUnlocked[5] ?? false, cost: this.slotPurchaseCosts[0] },
+      // Slot 6 (Boss 2 Kills): Center-Right Citadel Deck (relX: +span * 0.58)
+      { id: 6, relX: span * 0.58,  relY: -10, radius: 22, turret: null, unlocked: prevUnlocked[6] ?? false, cost: this.slotPurchaseCosts[1] },
+      // Slot 7 (Boss 3 Kills): Inner Wing Left (relX: -span * 0.26)
+      { id: 7, relX: -span * 0.26, relY: -20, radius: 22, turret: null, unlocked: prevUnlocked[7] ?? false, cost: this.slotPurchaseCosts[2] },
+      // Slot 8 (Boss 4 Kills): Inner Wing Right (relX: +span * 0.26)
+      { id: 8, relX: span * 0.26,  relY: -20, radius: 22, turret: null, unlocked: prevUnlocked[8] ?? false, cost: this.slotPurchaseCosts[3] },
+      // Slot 9 (Boss 5 Kills): Core Command Apex (relX: 0)
       { id: 9, relX: 0,            relY: -6,  radius: 22, turret: null, unlocked: prevUnlocked[9] ?? false, cost: this.slotPurchaseCosts[4] }
     ];
 
